@@ -152,7 +152,7 @@ func TestEventToSubgraph(t *testing.T) {
 		},
 	}
 
-	expanders := GetDefaultExpanderRegistry()
+	expanders := NewExpanderPipeline(DefaultExpanders()...)
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

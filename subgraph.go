@@ -45,56 +45,7 @@ func (s *EventSubgraph) NodesByLabel(label string) []*graph.Node {
 	return nodes
 }
 
-// Event to subgraph conversion
-
-func EventToSubgraph(e roots.Event, exp ExpanderRegistry) *EventSubgraph {
-	subgraph := NewEventSubgraph()
-
-	// Create Event node
-	eventNode := graph.NewEventNode(e.ID)
-	eventNode.Props["created_at"] = e.CreatedAt
-	eventNode.Props["kind"] = e.Kind
-	eventNode.Props["content"] = e.Content
-
-	// Create User node
-	userNode := graph.NewUserNode(e.PubKey)
-
-	// Create SIGNED rel
-	signedRel := graph.NewSignedRel(userNode, eventNode, nil)
-
-	// Create Tag nodes
-	tagNodes := []*graph.Node{}
-	for _, tag := range e.Tags {
-		if !isValidTag(tag) {
-			continue
-		}
-		tagNodes = append(tagNodes, graph.NewTagNode(tag[0], tag[1]))
-	}
-
-	// Create Tag rels
-	tagRels := []*graph.Relationship{}
-	for _, tagNode := range tagNodes {
-		tagRels = append(tagRels, graph.NewTaggedRel(eventNode, tagNode, nil))
-	}
-
-	// Populate subgraph
-	subgraph.AddNode(eventNode)
-	subgraph.AddNode(userNode)
-	subgraph.AddRel(signedRel)
-	for _, node := range tagNodes {
-		subgraph.AddNode(node)
-	}
-	for _, rel := range tagRels {
-		subgraph.AddRel(rel)
-	}
-
-	// Run expanders
-	for _, expander := range exp {
-		expander(e, subgraph)
-	}
-
-	return subgraph
-}
+// Helpers
 
 func isValidTag(t roots.Tag) bool {
 	if len(t) < 2 {
@@ -106,4 +57,70 @@ func isValidTag(t roots.Tag) bool {
 		return false
 	}
 	return true
+}
+
+// Event to subgraph conversion
+
+func EventToSubgraph(e roots.Event, p ExpanderPipeline) *EventSubgraph {
+	s := NewEventSubgraph()
+
+	// Create core entities
+	eventNode := newEventNode(e)
+	userNode := newUserNode(e)
+	signedRel := newSignedRel(userNode, eventNode)
+	tagNodes := newTagNodes(e)
+	tagRels := newTagRels(eventNode, tagNodes)
+
+	// Populate subgraph
+	s.AddNode(eventNode)
+	s.AddNode(userNode)
+	s.AddRel(signedRel)
+	for _, node := range tagNodes {
+		s.AddNode(node)
+	}
+	for _, rel := range tagRels {
+		s.AddRel(rel)
+	}
+
+	// Run expanders
+	for _, expander := range p {
+		expander(e, s)
+	}
+
+	return s
+}
+
+func newEventNode(e roots.Event) *graph.Node {
+	eventNode := graph.NewEventNode(e.ID)
+	eventNode.Props["created_at"] = e.CreatedAt
+	eventNode.Props["kind"] = e.Kind
+	eventNode.Props["content"] = e.Content
+	return eventNode
+}
+
+func newUserNode(e roots.Event) *graph.Node {
+	return graph.NewUserNode(e.PubKey)
+}
+
+func newSignedRel(user, event *graph.Node) *graph.Relationship {
+	return graph.NewSignedRel(user, event, nil)
+}
+
+func newTagNodes(e roots.Event) []*graph.Node {
+	nodes := []*graph.Node{}
+	for _, tag := range e.Tags {
+		if !isValidTag(tag) {
+			continue
+		}
+		nodes = append(nodes, graph.NewTagNode(tag[0], tag[1]))
+	}
+	return nodes
+}
+
+func newTagRels(event *graph.Node, tags []*graph.Node) []*graph.Relationship {
+	rels := []*graph.Relationship{}
+	for _, tag := range tags {
+		rels = append(rels, graph.NewTaggedRel(event, tag, nil))
+	}
+	return rels
 }

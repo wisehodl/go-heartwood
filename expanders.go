@@ -6,23 +6,17 @@ import (
 )
 
 type Expander func(e roots.Event, s *EventSubgraph)
-type ExpanderRegistry []Expander
+type ExpanderPipeline []Expander
 
-func NewExpanderRegistry() ExpanderRegistry {
-	return []Expander{}
+func NewExpanderPipeline(expanders ...Expander) ExpanderPipeline {
+	return ExpanderPipeline(expanders)
 }
 
-func GetDefaultExpanderRegistry() ExpanderRegistry {
-	registry := NewExpanderRegistry()
-
-	registry.Add(ExpandTaggedEvents)
-	registry.Add(ExpandTaggedUsers)
-
-	return registry
-}
-
-func (r *ExpanderRegistry) Add(m Expander) {
-	*r = append(*r, m)
+func DefaultExpanders() []Expander {
+	return []Expander{
+		ExpandTaggedEvents,
+		ExpandTaggedUsers,
+	}
 }
 
 // Default Expander Functions
