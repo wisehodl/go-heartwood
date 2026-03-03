@@ -42,7 +42,7 @@ func expectEqualGraphFilters(t *testing.T, got, want GraphFilter) {
 	for i := range want.Graph {
 		expectEqualGraphFilters(t, got.Graph[i], want.Graph[i])
 	}
-	// assert.Equal(t, want.Extensions, got.Extensions)
+	assert.Equal(t, want.Extensions, got.Extensions)
 }
 
 // Tests
@@ -80,10 +80,10 @@ func TestMarshalJSON(t *testing.T) {
 			name: "graph field only",
 			filter: HeartwoodFilter{
 				Graph: []GraphFilter{
-					{Kinds: []json.RawMessage{json.RawMessage(`"$event.kind"`)}},
+					{Kinds: []json.RawMessage{json.RawMessage(`1`)}},
 				},
 			},
-			expected: `{"graph":[{"kinds":["$event.kind"]}]}`,
+			expected: `{"graph":[{"kinds":[1]}]}`,
 		},
 		{
 			name: "legacy and graph present",
