@@ -67,13 +67,13 @@ func NewTaggedRel(
 func NewReferencesEventRel(
 	start *Node, end *Node, props Properties) (*Relationship, error) {
 	return NewRelationshipWithValidation(
-		"REFERENCES", "Event", "Event", start, end, props)
+		"REFERENCES", "Tag", "Event", start, end, props)
 }
 
 func NewReferencesUserRel(
 	start *Node, end *Node, props Properties) (*Relationship, error) {
 	return NewRelationshipWithValidation(
-		"REFERENCES", "Event", "User", start, end, props)
+		"REFERENCES", "Tag", "User", start, end, props)
 }
 
 // ========================================
