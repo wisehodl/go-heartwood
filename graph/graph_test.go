@@ -6,7 +6,7 @@ import (
 )
 
 func TestMatchKeys(t *testing.T) {
-	matchKeys := &MatchKeys{
+	matchKeys := &SimpleMatchKeys{
 		Keys: map[string][]string{
 			"User":  {"pubkey"},
 			"Event": {"id"},
@@ -34,34 +34,34 @@ func TestMatchKeys(t *testing.T) {
 	})
 }
 
-func TestNodeSortKey(t *testing.T) {
+func TestNodeBatchKey(t *testing.T) {
 	matchLabel := "Event"
 	labels := []string{"Event", "AddressableEvent"}
 
-	// labels should be sorted by key generator
+	// labels should be batched by key generator
 	expectedKey := "Event:AddressableEvent,Event"
 
 	// Test Serialization
-	sortKey := createNodeSortKey(matchLabel, labels)
-	assert.Equal(t, expectedKey, sortKey)
+	batchKey := createNodeBatchKey(matchLabel, labels)
+	assert.Equal(t, expectedKey, batchKey)
 
 	// Test Deserialization
-	returnedMatchLabel, returnedLabels, err := DeserializeNodeKey(sortKey)
+	returnedMatchLabel, returnedLabels, err := DeserializeNodeBatchKey(batchKey)
 	assert.NoError(t, err)
 	assert.Equal(t, matchLabel, returnedMatchLabel)
 	assert.ElementsMatch(t, labels, returnedLabels)
 }
 
-func TestRelSortKey(t *testing.T) {
+func TestRelBatchKey(t *testing.T) {
 	rtype, startLabel, endLabel := "SIGNED", "User", "Event"
 	expectedKey := "SIGNED,User,Event"
 
 	// Test Serialization
-	sortKey := createRelSortKey(rtype, startLabel, endLabel)
-	assert.Equal(t, expectedKey, sortKey)
+	batchKey := createRelBatchKey(rtype, startLabel, endLabel)
+	assert.Equal(t, expectedKey, batchKey)
 
 	// Test Deserialization
-	returnedRtype, returnedStartLabel, returnedEndLabel, err := DeserializeRelKey(sortKey)
+	returnedRtype, returnedStartLabel, returnedEndLabel, err := DeserializeRelBatchKey(batchKey)
 	assert.NoError(t, err)
 	assert.Equal(t, rtype, returnedRtype)
 	assert.Equal(t, startLabel, returnedStartLabel)
@@ -69,7 +69,7 @@ func TestRelSortKey(t *testing.T) {
 }
 
 func TestMatchProps(t *testing.T) {
-	matchKeys := &MatchKeys{
+	matchKeys := &SimpleMatchKeys{
 		Keys: map[string][]string{
 			"User":  {"pubkey"},
 			"Event": {"id"},
@@ -133,7 +133,7 @@ func TestMatchProps(t *testing.T) {
 }
 
 func TestStructuredSubgraphAddNode(t *testing.T) {
-	matchKeys := NewMatchKeys()
+	matchKeys := NewSimpleMatchKeys()
 	subgraph := NewStructuredSubgraph(matchKeys)
 	node := NewEventNode("abc123")
 
@@ -145,7 +145,7 @@ func TestStructuredSubgraphAddNode(t *testing.T) {
 }
 
 func TestStructuredSubgraphAddNodeInvalid(t *testing.T) {
-	matchKeys := NewMatchKeys()
+	matchKeys := NewSimpleMatchKeys()
 	subgraph := NewStructuredSubgraph(matchKeys)
 	node := NewNode("Event", Properties{})
 
@@ -156,7 +156,7 @@ func TestStructuredSubgraphAddNodeInvalid(t *testing.T) {
 }
 
 func TestStructuredSubgraphAddRel(t *testing.T) {
-	matchKeys := NewMatchKeys()
+	matchKeys := NewSimpleMatchKeys()
 	subgraph := NewStructuredSubgraph(matchKeys)
 
 	userNode := NewUserNode("pubkey1")

@@ -31,12 +31,12 @@ type MatchKeysProvider interface {
 	GetKeys(label string) ([]string, bool)
 }
 
-// MatchKeys is a simple implementation of the MatchKeysProvider interface.
-type MatchKeys struct {
+// SimpleMatchKeys is a simple implementation of the MatchKeysProvider interface.
+type SimpleMatchKeys struct {
 	Keys map[string][]string
 }
 
-func (p *MatchKeys) GetLabels() []string {
+func (p *SimpleMatchKeys) GetLabels() []string {
 	labels := []string{}
 	for l := range p.Keys {
 		labels = append(labels, l)
@@ -44,7 +44,7 @@ func (p *MatchKeys) GetLabels() []string {
 	return labels
 }
 
-func (p *MatchKeys) GetKeys(label string) ([]string, bool) {
+func (p *SimpleMatchKeys) GetKeys(label string) ([]string, bool) {
 	if keys, exists := p.Keys[label]; exists {
 		return keys, exists
 	} else {
@@ -216,9 +216,9 @@ func (s *Subgraph) NodesByLabel(label string) []*Node {
 // StructuredSubgraph is a structured collection of nodes and relationships for
 // the purpose of conducting batch operations.
 type StructuredSubgraph struct {
-	// A map of grouped nodes, sorted by their label combinations.
+	// A map of grouped nodes, batched by their label combinations.
 	nodes map[string][]*Node
-	// A map of grouped relationships, sorted by their type and related node
+	// A map of grouped relationships, batched by their type and related node
 	// labels.
 	rels map[string][]*Relationship
 	// Provides node property keys used to match nodes with given labels in the
@@ -236,7 +236,7 @@ func NewStructuredSubgraph(matchProvider MatchKeysProvider) *StructuredSubgraph 
 	}
 }
 
-// AddNode sorts a node into the subgraph.
+// AddNode adds a node into the subgraph.
 func (s *StructuredSubgraph) AddNode(node *Node) error {
 
 	// Verify that the node has defined match property values.
@@ -245,20 +245,20 @@ func (s *StructuredSubgraph) AddNode(node *Node) error {
 		return fmt.Errorf("invalid node: %s", err)
 	}
 
-	// Determine the node's sort key.
-	sortKey := createNodeSortKey(matchLabel, node.Labels.ToArray())
+	// Determine the node's batch key.
+	batchKey := createNodeBatchKey(matchLabel, node.Labels.ToArray())
 
-	if _, exists := s.nodes[sortKey]; !exists {
-		s.nodes[sortKey] = []*Node{}
+	if _, exists := s.nodes[batchKey]; !exists {
+		s.nodes[batchKey] = []*Node{}
 	}
 
 	// Add the node to the subgraph.
-	s.nodes[sortKey] = append(s.nodes[sortKey], node)
+	s.nodes[batchKey] = append(s.nodes[batchKey], node)
 
 	return nil
 }
 
-// AddRel sorts a relationship into the subgraph.
+// AddRel adds a relationship into the subgraph.
 func (s *StructuredSubgraph) AddRel(rel *Relationship) error {
 
 	// Verify that the start node has defined match property values.
@@ -273,25 +273,25 @@ func (s *StructuredSubgraph) AddRel(rel *Relationship) error {
 		return fmt.Errorf("invalid end node: %s", err)
 	}
 
-	// Determine the relationship's sort key.
-	sortKey := createRelSortKey(rel.Type, startLabel, endLabel)
+	// Determine the relationship's batch key.
+	batchKey := createRelBatchKey(rel.Type, startLabel, endLabel)
 
-	if _, exists := s.rels[sortKey]; !exists {
-		s.rels[sortKey] = []*Relationship{}
+	if _, exists := s.rels[batchKey]; !exists {
+		s.rels[batchKey] = []*Relationship{}
 	}
 
 	// Add the relationship to the subgraph.
-	s.rels[sortKey] = append(s.rels[sortKey], rel)
+	s.rels[batchKey] = append(s.rels[batchKey], rel)
 
 	return nil
 }
 
-// GetNodes returns the nodes grouped under the given sort key.
+// GetNodes returns the nodes grouped under the given batch key.
 func (s *StructuredSubgraph) GetNodes(nodeKey string) []*Node {
 	return s.nodes[nodeKey]
 }
 
-// GetRels returns the rels grouped under the given sort key.
+// GetRels returns the rels grouped under the given batch key.
 func (s *StructuredSubgraph) GetRels(relKey string) []*Relationship {
 	return s.rels[relKey]
 }
@@ -318,7 +318,7 @@ func (s *StructuredSubgraph) RelCount() int {
 	return count
 }
 
-// NodeKeys returns the list of node sort keys in the subgraph.
+// NodeKeys returns the list of node batch keys in the subgraph.
 func (s *StructuredSubgraph) NodeKeys() []string {
 	keys := []string{}
 	for l := range s.nodes {
@@ -327,7 +327,7 @@ func (s *StructuredSubgraph) NodeKeys() []string {
 	return keys
 }
 
-// RelKeys returns the list of relationship sort keys in the subgraph.
+// RelKeys returns the list of relationship batch keys in the subgraph.
 func (s *StructuredSubgraph) RelKeys() []string {
 	keys := []string{}
 	for t := range s.rels {
@@ -336,38 +336,38 @@ func (s *StructuredSubgraph) RelKeys() []string {
 	return keys
 }
 
-// createNodeSortKey returns the serialized node labels for sorting.
-func createNodeSortKey(matchLabel string, labels []string) string {
+// createNodeBatchKey returns the serialized node labels for batching.
+func createNodeBatchKey(matchLabel string, labels []string) string {
 	sort.Strings(labels)
 	serializedLabels := strings.Join(labels, ",")
 	return fmt.Sprintf("%s:%s", matchLabel, serializedLabels)
 }
 
-// createRelSortKey returns the serialized relationship type and start/end node
-// labels for sorting.
-func createRelSortKey(
+// createRelBatchKey returns the serialized relationship type and start/end node
+// labels for batching.
+func createRelBatchKey(
 	rtype string, startLabel string, endLabel string) string {
 	return strings.Join([]string{rtype, startLabel, endLabel}, ",")
 }
 
-// DeserializeNodeKey returns the list of node labels from the serialized sort
+// DeserializeNodeBatchKey returns the list of node labels from the serialized batch
 // key.
-func DeserializeNodeKey(sortKey string) (string, []string, error) {
-	parts := strings.Split(sortKey, ":")
+func DeserializeNodeBatchKey(batchKey string) (string, []string, error) {
+	parts := strings.Split(batchKey, ":")
 	if len(parts) != 2 {
-		return "", nil, fmt.Errorf("invalid node sort key: %s", sortKey)
+		return "", nil, fmt.Errorf("invalid node batch key: %s", batchKey)
 	}
 	matchLabel, serializedLabels := parts[0], parts[1]
 	labels := strings.Split(serializedLabels, ",")
 	return matchLabel, labels, nil
 }
 
-// DeserializeRelKey returns the relationship type, start node label, and end
-// node label from the serialized sort key. Panics if the sort key is invalid.
-func DeserializeRelKey(sortKey string) (string, string, string, error) {
-	parts := strings.Split(sortKey, ",")
+// DeserializeRelBatchKey returns the relationship type, start node label, and end
+// node label from the serialized batch key. Panics if the batch key is invalid.
+func DeserializeRelBatchKey(batchKey string) (string, string, string, error) {
+	parts := strings.Split(batchKey, ",")
 	if len(parts) != 3 {
-		return "", "", "", fmt.Errorf("invalid relationship sort key: %s", sortKey)
+		return "", "", "", fmt.Errorf("invalid relationship batch key: %s", batchKey)
 	}
 	rtype, startLabel, endLabel := parts[0], parts[1], parts[2]
 	return rtype, startLabel, endLabel, nil

@@ -15,7 +15,7 @@ func MergeSubgraph(
 ) ([]neo4j.ResultSummary, error) {
 	// Validate subgraph
 	for _, nodeKey := range subgraph.NodeKeys() {
-		matchLabel, _, err := graph.DeserializeNodeKey(nodeKey)
+		matchLabel, _, err := graph.DeserializeNodeBatchKey(nodeKey)
 		if err != nil {
 			return nil, err
 		}
@@ -27,7 +27,7 @@ func MergeSubgraph(
 	}
 
 	for _, relKey := range subgraph.RelKeys() {
-		_, startLabel, endLabel, err := graph.DeserializeRelKey(relKey)
+		_, startLabel, endLabel, err := graph.DeserializeRelBatchKey(relKey)
 		if err != nil {
 			return nil, err
 		}
@@ -51,7 +51,7 @@ func MergeSubgraph(
 		var resultSummaries []neo4j.ResultSummary
 
 		for _, nodeKey := range subgraph.NodeKeys() {
-			matchLabel, labels, _ := graph.DeserializeNodeKey(nodeKey)
+			matchLabel, labels, _ := graph.DeserializeNodeBatchKey(nodeKey)
 			nodeResultSummary, err := MergeNodes(
 				ctx, tx,
 				matchLabel,
@@ -68,7 +68,7 @@ func MergeSubgraph(
 		}
 
 		for _, relKey := range subgraph.RelKeys() {
-			rtype, startLabel, endLabel, _ := graph.DeserializeRelKey(relKey)
+			rtype, startLabel, endLabel, _ := graph.DeserializeRelBatchKey(relKey)
 			relResultSummary, err := MergeRels(
 				ctx, tx,
 				rtype,

@@ -11,8 +11,8 @@ import (
 // Schema Match Keys
 // ========================================
 
-func NewMatchKeys() *MatchKeys {
-	return &MatchKeys{
+func NewSimpleMatchKeys() *SimpleMatchKeys {
+	return &SimpleMatchKeys{
 		Keys: map[string][]string{
 			"User":  {"pubkey"},
 			"Relay": {"url"},
