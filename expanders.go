@@ -5,7 +5,7 @@ import (
 	roots "git.wisehodl.dev/jay/go-roots/events"
 )
 
-type Expander func(e roots.Event, s *graph.Subgraph)
+type Expander func(e roots.Event, s *EventSubgraph)
 type ExpanderRegistry []Expander
 
 func NewExpanderRegistry() ExpanderRegistry {
@@ -27,7 +27,7 @@ func (r *ExpanderRegistry) Add(m Expander) {
 
 // Default Expander Functions
 
-func ExpandTaggedEvents(e roots.Event, s *graph.Subgraph) {
+func ExpandTaggedEvents(e roots.Event, s *EventSubgraph) {
 	tagNodes := s.NodesByLabel("Tag")
 	for _, tag := range e.Tags {
 		if !isValidTag(tag) {
@@ -52,7 +52,7 @@ func ExpandTaggedEvents(e roots.Event, s *graph.Subgraph) {
 	}
 }
 
-func ExpandTaggedUsers(e roots.Event, s *graph.Subgraph) {
+func ExpandTaggedUsers(e roots.Event, s *EventSubgraph) {
 	tagNodes := s.NodesByLabel("Tag")
 	for _, tag := range e.Tags {
 		if !isValidTag(tag) {

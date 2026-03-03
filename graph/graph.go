@@ -162,54 +162,6 @@ func (r *Relationship) Serialize() *SerializedRel {
 }
 
 // ========================================
-// Simple Subgraph
-// ========================================
-
-// Subgraph represents a simple collection of nodes and relationships.
-type Subgraph struct {
-	// The nodes in the subgraph.
-	nodes []*Node
-	// The relationships in the subgraph.
-	rels []*Relationship
-}
-
-// NewSubgraph creates an empty subgraph.
-func NewSubgraph() *Subgraph {
-	return &Subgraph{
-		nodes: []*Node{},
-		rels:  []*Relationship{},
-	}
-}
-
-// AddNode adds a node to the subgraph
-func (s *Subgraph) AddNode(node *Node) {
-	s.nodes = append(s.nodes, node)
-}
-
-// AddRel adds a relationship to the subgraph.
-func (s *Subgraph) AddRel(rel *Relationship) {
-	s.rels = append(s.rels, rel)
-}
-
-func (s *Subgraph) Nodes() []*Node {
-	return s.nodes
-}
-
-func (s *Subgraph) Rels() []*Relationship {
-	return s.rels
-}
-
-func (s *Subgraph) NodesByLabel(label string) []*Node {
-	nodes := []*Node{}
-	for _, node := range s.nodes {
-		if node.Labels.Contains(label) {
-			nodes = append(nodes, node)
-		}
-	}
-	return nodes
-}
-
-// ========================================
 // Structured Subgraph
 // ========================================
 

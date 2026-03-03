@@ -30,8 +30,8 @@ func newFullEventNode(id string, createdAt, kind int, content string) *graph.Nod
 	return n
 }
 
-func baseSubgraph(eventID, pubkey string) (*graph.Subgraph, *graph.Node, *graph.Node) {
-	s := graph.NewSubgraph()
+func baseSubgraph(eventID, pubkey string) (*EventSubgraph, *graph.Node, *graph.Node) {
+	s := NewEventSubgraph()
 	eventNode := newFullEventNode(eventID, static.CreatedAt, static.Kind, static.Content)
 	userNode := graph.NewUserNode(pubkey)
 	s.AddNode(eventNode)
@@ -44,7 +44,7 @@ func TestEventToSubgraph(t *testing.T) {
 	cases := []struct {
 		name     string
 		event    roots.Event
-		expected *graph.Subgraph
+		expected *EventSubgraph
 	}{
 		{
 			name: "bare event",
@@ -52,7 +52,7 @@ func TestEventToSubgraph(t *testing.T) {
 				ID: ids["a"], PubKey: ids["b"],
 				CreatedAt: static.CreatedAt, Kind: static.Kind, Content: static.Content,
 			},
-			expected: func() *graph.Subgraph {
+			expected: func() *EventSubgraph {
 				s, _, _ := baseSubgraph(ids["a"], ids["b"])
 				return s
 			}(),
@@ -64,7 +64,7 @@ func TestEventToSubgraph(t *testing.T) {
 				CreatedAt: static.CreatedAt, Kind: static.Kind, Content: static.Content,
 				Tags: []roots.Tag{{"t", "bitcoin"}},
 			},
-			expected: func() *graph.Subgraph {
+			expected: func() *EventSubgraph {
 				s, eventNode, _ := baseSubgraph(ids["a"], ids["b"])
 				tagNode := graph.NewTagNode("t", "bitcoin")
 				s.AddNode(tagNode)
@@ -79,7 +79,7 @@ func TestEventToSubgraph(t *testing.T) {
 				CreatedAt: static.CreatedAt, Kind: static.Kind, Content: static.Content,
 				Tags: []roots.Tag{{"t"}},
 			},
-			expected: func() *graph.Subgraph {
+			expected: func() *EventSubgraph {
 				s, _, _ := baseSubgraph(ids["a"], ids["b"])
 				return s
 			}(),
@@ -91,7 +91,7 @@ func TestEventToSubgraph(t *testing.T) {
 				CreatedAt: static.CreatedAt, Kind: static.Kind, Content: static.Content,
 				Tags: []roots.Tag{{"e", ids["c"]}},
 			},
-			expected: func() *graph.Subgraph {
+			expected: func() *EventSubgraph {
 				s, eventNode, _ := baseSubgraph(ids["a"], ids["b"])
 				tagNode := graph.NewTagNode("e", ids["c"])
 				referencedEvent := graph.NewEventNode(ids["c"])
@@ -109,7 +109,7 @@ func TestEventToSubgraph(t *testing.T) {
 				CreatedAt: static.CreatedAt, Kind: static.Kind, Content: static.Content,
 				Tags: []roots.Tag{{"e", "notvalid"}},
 			},
-			expected: func() *graph.Subgraph {
+			expected: func() *EventSubgraph {
 				s, eventNode, _ := baseSubgraph(ids["a"], ids["b"])
 				tagNode := graph.NewTagNode("e", "notvalid")
 				s.AddNode(tagNode)
@@ -124,7 +124,7 @@ func TestEventToSubgraph(t *testing.T) {
 				CreatedAt: static.CreatedAt, Kind: static.Kind, Content: static.Content,
 				Tags: []roots.Tag{{"p", ids["d"]}},
 			},
-			expected: func() *graph.Subgraph {
+			expected: func() *EventSubgraph {
 				s, eventNode, _ := baseSubgraph(ids["a"], ids["b"])
 				tagNode := graph.NewTagNode("p", ids["d"])
 				referencedUser := graph.NewUserNode(ids["d"])
@@ -142,7 +142,7 @@ func TestEventToSubgraph(t *testing.T) {
 				CreatedAt: static.CreatedAt, Kind: static.Kind, Content: static.Content,
 				Tags: []roots.Tag{{"p", "notvalid"}},
 			},
-			expected: func() *graph.Subgraph {
+			expected: func() *EventSubgraph {
 				s, eventNode, _ := baseSubgraph(ids["a"], ids["b"])
 				tagNode := graph.NewTagNode("p", "notvalid")
 				s.AddNode(tagNode)
@@ -228,7 +228,7 @@ func propsEqual(expected, got graph.Properties) error {
 	return nil
 }
 
-func assertSubgraphsEqual(t *testing.T, expected, got *graph.Subgraph) {
+func assertSubgraphsEqual(t *testing.T, expected, got *EventSubgraph) {
 	t.Helper()
 
 	gotNodes := make([]*graph.Node, len(got.Nodes()))

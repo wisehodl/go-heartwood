@@ -5,8 +5,50 @@ import (
 	roots "git.wisehodl.dev/jay/go-roots/events"
 )
 
-func EventToSubgraph(e roots.Event, exp ExpanderRegistry) *graph.Subgraph {
-	subgraph := graph.NewSubgraph()
+// Event subgraph struct
+
+type EventSubgraph struct {
+	nodes []*graph.Node
+	rels  []*graph.Relationship
+}
+
+func NewEventSubgraph() *EventSubgraph {
+	return &EventSubgraph{
+		nodes: []*graph.Node{},
+		rels:  []*graph.Relationship{},
+	}
+}
+
+func (s *EventSubgraph) AddNode(node *graph.Node) {
+	s.nodes = append(s.nodes, node)
+}
+
+func (s *EventSubgraph) AddRel(rel *graph.Relationship) {
+	s.rels = append(s.rels, rel)
+}
+
+func (s *EventSubgraph) Nodes() []*graph.Node {
+	return s.nodes
+}
+
+func (s *EventSubgraph) Rels() []*graph.Relationship {
+	return s.rels
+}
+
+func (s *EventSubgraph) NodesByLabel(label string) []*graph.Node {
+	nodes := []*graph.Node{}
+	for _, node := range s.nodes {
+		if node.Labels.Contains(label) {
+			nodes = append(nodes, node)
+		}
+	}
+	return nodes
+}
+
+// Event to subgraph conversion
+
+func EventToSubgraph(e roots.Event, exp ExpanderRegistry) *EventSubgraph {
+	subgraph := NewEventSubgraph()
 
 	// Create Event node
 	eventNode := graph.NewEventNode(e.ID)
