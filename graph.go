@@ -199,6 +199,16 @@ func (s *Subgraph) Rels() []*Relationship {
 	return s.rels
 }
 
+func (s *Subgraph) NodesByLabel(label string) []*Node {
+	nodes := []*Node{}
+	for _, node := range s.nodes {
+		if node.Labels.Contains(label) {
+			nodes = append(nodes, node)
+		}
+	}
+	return nodes
+}
+
 // ========================================
 // Structured Subgraph
 // ========================================

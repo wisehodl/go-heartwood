@@ -83,11 +83,79 @@ func TestEventToSubgraph(t *testing.T) {
 				return s
 			}(),
 		},
+		{
+			name: "e tag with valid hex64",
+			event: roots.Event{
+				ID: ids["a"], PubKey: ids["b"],
+				CreatedAt: static.CreatedAt, Kind: static.Kind, Content: static.Content,
+				Tags: []roots.Tag{{"e", ids["c"]}},
+			},
+			expected: func() *Subgraph {
+				s, eventNode, _ := baseSubgraph(ids["a"], ids["b"])
+				tagNode := NewTagNode("e", ids["c"])
+				referencedEvent := NewEventNode(ids["c"])
+				s.AddNode(tagNode)
+				s.AddNode(referencedEvent)
+				s.AddRel(NewTaggedRel(eventNode, tagNode, nil))
+				s.AddRel(NewReferencesEventRel(tagNode, referencedEvent, nil))
+				return s
+			}(),
+		},
+		{
+			name: "e tag with invalid value",
+			event: roots.Event{
+				ID: ids["a"], PubKey: ids["b"],
+				CreatedAt: static.CreatedAt, Kind: static.Kind, Content: static.Content,
+				Tags: []roots.Tag{{"e", "notvalid"}},
+			},
+			expected: func() *Subgraph {
+				s, eventNode, _ := baseSubgraph(ids["a"], ids["b"])
+				tagNode := NewTagNode("e", "notvalid")
+				s.AddNode(tagNode)
+				s.AddRel(NewTaggedRel(eventNode, tagNode, nil))
+				return s
+			}(),
+		},
+		{
+			name: "p tag with valid hex64",
+			event: roots.Event{
+				ID: ids["a"], PubKey: ids["b"],
+				CreatedAt: static.CreatedAt, Kind: static.Kind, Content: static.Content,
+				Tags: []roots.Tag{{"p", ids["d"]}},
+			},
+			expected: func() *Subgraph {
+				s, eventNode, _ := baseSubgraph(ids["a"], ids["b"])
+				tagNode := NewTagNode("p", ids["d"])
+				referencedUser := NewUserNode(ids["d"])
+				s.AddNode(tagNode)
+				s.AddNode(referencedUser)
+				s.AddRel(NewTaggedRel(eventNode, tagNode, nil))
+				s.AddRel(NewReferencesUserRel(tagNode, referencedUser, nil))
+				return s
+			}(),
+		},
+		{
+			name: "p tag with invalid value",
+			event: roots.Event{
+				ID: ids["a"], PubKey: ids["b"],
+				CreatedAt: static.CreatedAt, Kind: static.Kind, Content: static.Content,
+				Tags: []roots.Tag{{"p", "notvalid"}},
+			},
+			expected: func() *Subgraph {
+				s, eventNode, _ := baseSubgraph(ids["a"], ids["b"])
+				tagNode := NewTagNode("p", "notvalid")
+				s.AddNode(tagNode)
+				s.AddRel(NewTaggedRel(eventNode, tagNode, nil))
+				return s
+			}(),
+		},
 	}
+
+	expanders := GetDefaultExpanderRegistry()
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := EventToSubgraph(tc.event)
+			got := EventToSubgraph(tc.event, expanders)
 			assertSubgraphsEqual(t, tc.expected, got)
 		})
 	}

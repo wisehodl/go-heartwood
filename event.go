@@ -4,7 +4,7 @@ import (
 	roots "git.wisehodl.dev/jay/go-roots/events"
 )
 
-func EventToSubgraph(e roots.Event) *Subgraph {
+func EventToSubgraph(e roots.Event, exp ExpanderRegistry) *Subgraph {
 	subgraph := NewSubgraph()
 
 	// Create Event node
@@ -43,6 +43,11 @@ func EventToSubgraph(e roots.Event) *Subgraph {
 	}
 	for _, rel := range tagRels {
 		subgraph.AddRel(rel)
+	}
+
+	// Run expanders
+	for _, expander := range exp {
+		expander(e, subgraph)
 	}
 
 	return subgraph
