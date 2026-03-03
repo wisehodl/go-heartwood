@@ -15,13 +15,13 @@ func intPtr(i int) *int {
 
 func expectEqualHeartwoodFilters(t *testing.T, got, want HeartwoodFilter) {
 	t.Helper()
-	assert.Equal(t, want.Legacy.IDs, got.Legacy.IDs)
-	assert.Equal(t, want.Legacy.Authors, got.Legacy.Authors)
-	assert.Equal(t, want.Legacy.Kinds, got.Legacy.Kinds)
-	assert.Equal(t, want.Legacy.Since, got.Legacy.Since)
-	assert.Equal(t, want.Legacy.Until, got.Legacy.Until)
-	assert.Equal(t, want.Legacy.Limit, got.Legacy.Limit)
-	assert.Equal(t, want.Legacy.Tags, got.Legacy.Tags)
+	assert.Equal(t, want.Root.IDs, got.Root.IDs)
+	assert.Equal(t, want.Root.Authors, got.Root.Authors)
+	assert.Equal(t, want.Root.Kinds, got.Root.Kinds)
+	assert.Equal(t, want.Root.Since, got.Root.Since)
+	assert.Equal(t, want.Root.Until, got.Root.Until)
+	assert.Equal(t, want.Root.Limit, got.Root.Limit)
+	assert.Equal(t, want.Root.Tags, got.Root.Tags)
 	assert.Equal(t, len(want.Graph), len(got.Graph))
 	for i := range want.Graph {
 		expectEqualGraphFilters(t, got.Graph[i], want.Graph[i])
@@ -61,7 +61,7 @@ func TestMarshalJSON(t *testing.T) {
 		{
 			name: "legacy fields only",
 			filter: HeartwoodFilter{
-				Legacy: roots.Filter{
+				Root: roots.Filter{
 					IDs:   []string{"abc"},
 					Kinds: []int{1},
 					Since: intPtr(1000),
@@ -88,7 +88,7 @@ func TestMarshalJSON(t *testing.T) {
 		{
 			name: "legacy and graph present",
 			filter: HeartwoodFilter{
-				Legacy: roots.Filter{
+				Root: roots.Filter{
 					IDs: []string{"abc"},
 				},
 				Graph: []GraphFilter{
@@ -128,7 +128,7 @@ func TestUnmarshalJSON(t *testing.T) {
 			name:  "legacy fields only",
 			input: `{"ids":["abc"],"kinds":[1],"since":1000}`,
 			expected: HeartwoodFilter{
-				Legacy: roots.Filter{
+				Root: roots.Filter{
 					IDs:   []string{"abc"},
 					Kinds: []int{1},
 					Since: intPtr(1000),
@@ -155,7 +155,7 @@ func TestUnmarshalJSON(t *testing.T) {
 			name:  "legacy and graph present",
 			input: `{"ids":["abc"],"graph":[{"kinds":[1]}]}`,
 			expected: HeartwoodFilter{
-				Legacy: roots.Filter{
+				Root: roots.Filter{
 					IDs: []string{"abc"},
 				},
 				Graph: []GraphFilter{
@@ -167,7 +167,7 @@ func TestUnmarshalJSON(t *testing.T) {
 			name:  "graph is removed from legacy extensions",
 			input: `{"ids":["abc"],"graph":[{"kinds":[1]}],"search":"bitcoin"}`,
 			expected: HeartwoodFilter{
-				Legacy: roots.Filter{
+				Root: roots.Filter{
 					IDs: []string{"abc"},
 					Extensions: map[string]json.RawMessage{
 						"search": json.RawMessage(`"bitcoin"`),
@@ -188,7 +188,7 @@ func TestUnmarshalJSON(t *testing.T) {
 			expectEqualHeartwoodFilters(t, result, tc.expected)
 
 			// Ensure graph extension was popped from legacy filter
-			assert.Nil(t, result.Legacy.Extensions["graph"])
+			assert.Nil(t, result.Root.Extensions["graph"])
 		})
 	}
 }

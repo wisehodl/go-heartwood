@@ -8,8 +8,8 @@ import (
 )
 
 type HeartwoodFilter struct {
-	Legacy roots.Filter
-	Graph  []GraphFilter
+	Root  roots.Filter
+	Graph []GraphFilter
 }
 
 type GraphFilter struct {
@@ -31,7 +31,7 @@ type Distance struct {
 }
 
 func MarshalJSON(f HeartwoodFilter) ([]byte, error) {
-	legacyFilter := f.Legacy
+	legacyFilter := f.Root
 
 	if f.Graph != nil {
 		graphArray, err := marshalGraphArray(f.Graph)
@@ -69,7 +69,7 @@ func UnmarshalJSON(data []byte, f *HeartwoodFilter) error {
 		delete(rootsFilter.Extensions, "graph")
 	}
 
-	f.Legacy = rootsFilter
+	f.Root = rootsFilter
 
 	return nil
 }
