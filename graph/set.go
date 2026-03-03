@@ -1,4 +1,4 @@
-package heartwood
+package graph
 
 // Sets
 
@@ -51,16 +51,4 @@ func (s Set[T]) ToArray() []T {
 		array = append(array, i)
 	}
 	return array
-}
-
-// Operations
-
-func Flatten[K comparable, V comparable](mapping map[K][]V) []V {
-	var values []V
-	for _, array := range mapping {
-		for _, v := range array {
-			values = append(values, v)
-		}
-	}
-	return values
 }

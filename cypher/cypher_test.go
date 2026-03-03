@@ -1,4 +1,4 @@
-package heartwood
+package cypher
 
 import (
 	"github.com/stretchr/testify/assert"

@@ -1,37 +1,38 @@
 package heartwood
 
 import (
+	"git.wisehodl.dev/jay/go-heartwood/graph"
 	roots "git.wisehodl.dev/jay/go-roots/events"
 )
 
-func EventToSubgraph(e roots.Event, exp ExpanderRegistry) *Subgraph {
-	subgraph := NewSubgraph()
+func EventToSubgraph(e roots.Event, exp ExpanderRegistry) *graph.Subgraph {
+	subgraph := graph.NewSubgraph()
 
 	// Create Event node
-	eventNode := NewEventNode(e.ID)
+	eventNode := graph.NewEventNode(e.ID)
 	eventNode.Props["created_at"] = e.CreatedAt
 	eventNode.Props["kind"] = e.Kind
 	eventNode.Props["content"] = e.Content
 
 	// Create User node
-	userNode := NewUserNode(e.PubKey)
+	userNode := graph.NewUserNode(e.PubKey)
 
 	// Create SIGNED rel
-	signedRel := NewSignedRel(userNode, eventNode, nil)
+	signedRel := graph.NewSignedRel(userNode, eventNode, nil)
 
 	// Create Tag nodes
-	tagNodes := []*Node{}
+	tagNodes := []*graph.Node{}
 	for _, tag := range e.Tags {
 		if !isValidTag(tag) {
 			continue
 		}
-		tagNodes = append(tagNodes, NewTagNode(tag[0], tag[1]))
+		tagNodes = append(tagNodes, graph.NewTagNode(tag[0], tag[1]))
 	}
 
 	// Create Tag rels
-	tagRels := []*Relationship{}
+	tagRels := []*graph.Relationship{}
 	for _, tagNode := range tagNodes {
-		tagRels = append(tagRels, NewTaggedRel(eventNode, tagNode, nil))
+		tagRels = append(tagRels, graph.NewTaggedRel(eventNode, tagNode, nil))
 	}
 
 	// Populate subgraph

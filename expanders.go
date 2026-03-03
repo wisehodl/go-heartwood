@@ -1,10 +1,11 @@
 package heartwood
 
 import (
+	"git.wisehodl.dev/jay/go-heartwood/graph"
 	roots "git.wisehodl.dev/jay/go-roots/events"
 )
 
-type Expander func(e roots.Event, s *Subgraph)
+type Expander func(e roots.Event, s *graph.Subgraph)
 type ExpanderRegistry []Expander
 
 func NewExpanderRegistry() ExpanderRegistry {
@@ -26,7 +27,7 @@ func (r *ExpanderRegistry) Add(m Expander) {
 
 // Default Expander Functions
 
-func ExpandTaggedEvents(e roots.Event, s *Subgraph) {
+func ExpandTaggedEvents(e roots.Event, s *graph.Subgraph) {
 	tagNodes := s.NodesByLabel("Tag")
 	for _, tag := range e.Tags {
 		if !isValidTag(tag) {
@@ -44,14 +45,14 @@ func ExpandTaggedEvents(e roots.Event, s *Subgraph) {
 			continue
 		}
 
-		referencedEvent := NewEventNode(value)
+		referencedEvent := graph.NewEventNode(value)
 
 		s.AddNode(referencedEvent)
-		s.AddRel(NewReferencesEventRel(tagNode, referencedEvent, nil))
+		s.AddRel(graph.NewReferencesEventRel(tagNode, referencedEvent, nil))
 	}
 }
 
-func ExpandTaggedUsers(e roots.Event, s *Subgraph) {
+func ExpandTaggedUsers(e roots.Event, s *graph.Subgraph) {
 	tagNodes := s.NodesByLabel("Tag")
 	for _, tag := range e.Tags {
 		if !isValidTag(tag) {
@@ -69,16 +70,16 @@ func ExpandTaggedUsers(e roots.Event, s *Subgraph) {
 			continue
 		}
 
-		referencedEvent := NewUserNode(value)
+		referencedEvent := graph.NewUserNode(value)
 
 		s.AddNode(referencedEvent)
-		s.AddRel(NewReferencesUserRel(tagNode, referencedEvent, nil))
+		s.AddRel(graph.NewReferencesUserRel(tagNode, referencedEvent, nil))
 	}
 }
 
 // Helpers
 
-func findTagNode(nodes []*Node, name, value string) *Node {
+func findTagNode(nodes []*graph.Node, name, value string) *graph.Node {
 	for _, node := range nodes {
 		if node.Props["name"] == name && node.Props["value"] == value {
 			return node

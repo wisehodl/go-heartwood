@@ -2,6 +2,7 @@ package heartwood
 
 import (
 	"fmt"
+	"git.wisehodl.dev/jay/go-heartwood/graph"
 	roots "git.wisehodl.dev/jay/go-roots/events"
 	"github.com/stretchr/testify/assert"
 	"reflect"
@@ -21,21 +22,21 @@ var static = roots.Event{
 	Content:   "hello",
 }
 
-func newFullEventNode(id string, createdAt, kind int, content string) *Node {
-	n := NewEventNode(id)
+func newFullEventNode(id string, createdAt, kind int, content string) *graph.Node {
+	n := graph.NewEventNode(id)
 	n.Props["created_at"] = createdAt
 	n.Props["kind"] = kind
 	n.Props["content"] = content
 	return n
 }
 
-func baseSubgraph(eventID, pubkey string) (*Subgraph, *Node, *Node) {
-	s := NewSubgraph()
+func baseSubgraph(eventID, pubkey string) (*graph.Subgraph, *graph.Node, *graph.Node) {
+	s := graph.NewSubgraph()
 	eventNode := newFullEventNode(eventID, static.CreatedAt, static.Kind, static.Content)
-	userNode := NewUserNode(pubkey)
+	userNode := graph.NewUserNode(pubkey)
 	s.AddNode(eventNode)
 	s.AddNode(userNode)
-	s.AddRel(NewSignedRel(userNode, eventNode, nil))
+	s.AddRel(graph.NewSignedRel(userNode, eventNode, nil))
 	return s, eventNode, userNode
 }
 
@@ -43,7 +44,7 @@ func TestEventToSubgraph(t *testing.T) {
 	cases := []struct {
 		name     string
 		event    roots.Event
-		expected *Subgraph
+		expected *graph.Subgraph
 	}{
 		{
 			name: "bare event",
@@ -51,7 +52,7 @@ func TestEventToSubgraph(t *testing.T) {
 				ID: ids["a"], PubKey: ids["b"],
 				CreatedAt: static.CreatedAt, Kind: static.Kind, Content: static.Content,
 			},
-			expected: func() *Subgraph {
+			expected: func() *graph.Subgraph {
 				s, _, _ := baseSubgraph(ids["a"], ids["b"])
 				return s
 			}(),
@@ -63,11 +64,11 @@ func TestEventToSubgraph(t *testing.T) {
 				CreatedAt: static.CreatedAt, Kind: static.Kind, Content: static.Content,
 				Tags: []roots.Tag{{"t", "bitcoin"}},
 			},
-			expected: func() *Subgraph {
+			expected: func() *graph.Subgraph {
 				s, eventNode, _ := baseSubgraph(ids["a"], ids["b"])
-				tagNode := NewTagNode("t", "bitcoin")
+				tagNode := graph.NewTagNode("t", "bitcoin")
 				s.AddNode(tagNode)
-				s.AddRel(NewTaggedRel(eventNode, tagNode, nil))
+				s.AddRel(graph.NewTaggedRel(eventNode, tagNode, nil))
 				return s
 			}(),
 		},
@@ -78,7 +79,7 @@ func TestEventToSubgraph(t *testing.T) {
 				CreatedAt: static.CreatedAt, Kind: static.Kind, Content: static.Content,
 				Tags: []roots.Tag{{"t"}},
 			},
-			expected: func() *Subgraph {
+			expected: func() *graph.Subgraph {
 				s, _, _ := baseSubgraph(ids["a"], ids["b"])
 				return s
 			}(),
@@ -90,14 +91,14 @@ func TestEventToSubgraph(t *testing.T) {
 				CreatedAt: static.CreatedAt, Kind: static.Kind, Content: static.Content,
 				Tags: []roots.Tag{{"e", ids["c"]}},
 			},
-			expected: func() *Subgraph {
+			expected: func() *graph.Subgraph {
 				s, eventNode, _ := baseSubgraph(ids["a"], ids["b"])
-				tagNode := NewTagNode("e", ids["c"])
-				referencedEvent := NewEventNode(ids["c"])
+				tagNode := graph.NewTagNode("e", ids["c"])
+				referencedEvent := graph.NewEventNode(ids["c"])
 				s.AddNode(tagNode)
 				s.AddNode(referencedEvent)
-				s.AddRel(NewTaggedRel(eventNode, tagNode, nil))
-				s.AddRel(NewReferencesEventRel(tagNode, referencedEvent, nil))
+				s.AddRel(graph.NewTaggedRel(eventNode, tagNode, nil))
+				s.AddRel(graph.NewReferencesEventRel(tagNode, referencedEvent, nil))
 				return s
 			}(),
 		},
@@ -108,11 +109,11 @@ func TestEventToSubgraph(t *testing.T) {
 				CreatedAt: static.CreatedAt, Kind: static.Kind, Content: static.Content,
 				Tags: []roots.Tag{{"e", "notvalid"}},
 			},
-			expected: func() *Subgraph {
+			expected: func() *graph.Subgraph {
 				s, eventNode, _ := baseSubgraph(ids["a"], ids["b"])
-				tagNode := NewTagNode("e", "notvalid")
+				tagNode := graph.NewTagNode("e", "notvalid")
 				s.AddNode(tagNode)
-				s.AddRel(NewTaggedRel(eventNode, tagNode, nil))
+				s.AddRel(graph.NewTaggedRel(eventNode, tagNode, nil))
 				return s
 			}(),
 		},
@@ -123,14 +124,14 @@ func TestEventToSubgraph(t *testing.T) {
 				CreatedAt: static.CreatedAt, Kind: static.Kind, Content: static.Content,
 				Tags: []roots.Tag{{"p", ids["d"]}},
 			},
-			expected: func() *Subgraph {
+			expected: func() *graph.Subgraph {
 				s, eventNode, _ := baseSubgraph(ids["a"], ids["b"])
-				tagNode := NewTagNode("p", ids["d"])
-				referencedUser := NewUserNode(ids["d"])
+				tagNode := graph.NewTagNode("p", ids["d"])
+				referencedUser := graph.NewUserNode(ids["d"])
 				s.AddNode(tagNode)
 				s.AddNode(referencedUser)
-				s.AddRel(NewTaggedRel(eventNode, tagNode, nil))
-				s.AddRel(NewReferencesUserRel(tagNode, referencedUser, nil))
+				s.AddRel(graph.NewTaggedRel(eventNode, tagNode, nil))
+				s.AddRel(graph.NewReferencesUserRel(tagNode, referencedUser, nil))
 				return s
 			}(),
 		},
@@ -141,11 +142,11 @@ func TestEventToSubgraph(t *testing.T) {
 				CreatedAt: static.CreatedAt, Kind: static.Kind, Content: static.Content,
 				Tags: []roots.Tag{{"p", "notvalid"}},
 			},
-			expected: func() *Subgraph {
+			expected: func() *graph.Subgraph {
 				s, eventNode, _ := baseSubgraph(ids["a"], ids["b"])
-				tagNode := NewTagNode("p", "notvalid")
+				tagNode := graph.NewTagNode("p", "notvalid")
 				s.AddNode(tagNode)
-				s.AddRel(NewTaggedRel(eventNode, tagNode, nil))
+				s.AddRel(graph.NewTaggedRel(eventNode, tagNode, nil))
 				return s
 			}(),
 		},
@@ -163,7 +164,7 @@ func TestEventToSubgraph(t *testing.T) {
 
 // helpers
 
-func nodesEqual(expected, got *Node) error {
+func nodesEqual(expected, got *graph.Node) error {
 	// Compare label counts
 	if expected.Labels.Length() != got.Labels.Length() {
 		return fmt.Errorf(
@@ -186,7 +187,7 @@ func nodesEqual(expected, got *Node) error {
 	return nil
 }
 
-func relsEqual(expected, got *Relationship) error {
+func relsEqual(expected, got *graph.Relationship) error {
 	// Compare type
 	if expected.Type != got.Type {
 		return fmt.Errorf("type: expected %q, got %q", expected.Type, got.Type)
@@ -208,7 +209,7 @@ func relsEqual(expected, got *Relationship) error {
 	return nil
 }
 
-func propsEqual(expected, got Properties) error {
+func propsEqual(expected, got graph.Properties) error {
 	if len(expected) != len(got) {
 		return fmt.Errorf(
 			"number of props does not match. expected %d, got %d",
@@ -227,13 +228,13 @@ func propsEqual(expected, got Properties) error {
 	return nil
 }
 
-func assertSubgraphsEqual(t *testing.T, expected, got *Subgraph) {
+func assertSubgraphsEqual(t *testing.T, expected, got *graph.Subgraph) {
 	t.Helper()
 
-	gotNodes := make([]*Node, len(got.Nodes()))
+	gotNodes := make([]*graph.Node, len(got.Nodes()))
 	copy(gotNodes, got.Nodes())
 
-	gotRels := make([]*Relationship, len(got.Rels()))
+	gotRels := make([]*graph.Relationship, len(got.Rels()))
 	copy(gotRels, got.Rels())
 
 	for _, expectedNode := range expected.Nodes() {

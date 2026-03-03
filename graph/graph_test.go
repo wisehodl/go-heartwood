@@ -1,4 +1,4 @@
-package heartwood
+package graph
 
 import (
 	"github.com/stretchr/testify/assert"
@@ -7,7 +7,7 @@ import (
 
 func TestMatchKeys(t *testing.T) {
 	matchKeys := &MatchKeys{
-		keys: map[string][]string{
+		Keys: map[string][]string{
 			"User":  {"pubkey"},
 			"Event": {"id"},
 			"Tag":   {"name", "value"},
@@ -70,7 +70,7 @@ func TestRelSortKey(t *testing.T) {
 
 func TestMatchProps(t *testing.T) {
 	matchKeys := &MatchKeys{
-		keys: map[string][]string{
+		Keys: map[string][]string{
 			"User":  {"pubkey"},
 			"Event": {"id"},
 		},

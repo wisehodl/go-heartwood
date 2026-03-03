@@ -1,7 +1,7 @@
 // This module defines types and functions for working with Neo4j graph
 // entities.
 
-package heartwood
+package graph
 
 import (
 	"fmt"
@@ -33,19 +33,19 @@ type MatchKeysProvider interface {
 
 // MatchKeys is a simple implementation of the MatchKeysProvider interface.
 type MatchKeys struct {
-	keys map[string][]string
+	Keys map[string][]string
 }
 
 func (p *MatchKeys) GetLabels() []string {
 	labels := []string{}
-	for l := range p.keys {
+	for l := range p.Keys {
 		labels = append(labels, l)
 	}
 	return labels
 }
 
 func (p *MatchKeys) GetKeys(label string) ([]string, bool) {
-	if keys, exists := p.keys[label]; exists {
+	if keys, exists := p.Keys[label]; exists {
 		return keys, exists
 	} else {
 		return nil, exists
@@ -294,6 +294,10 @@ func (s *StructuredSubgraph) GetNodes(nodeKey string) []*Node {
 // GetRels returns the rels grouped under the given sort key.
 func (s *StructuredSubgraph) GetRels(relKey string) []*Relationship {
 	return s.rels[relKey]
+}
+
+func (s *StructuredSubgraph) MatchProvider() MatchKeysProvider {
+	return s.matchProvider
 }
 
 // NodeCount returns the number of nodes in the subgraph.

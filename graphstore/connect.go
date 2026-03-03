@@ -1,4 +1,4 @@
-package heartwood
+package graphstore
 
 import (
 	"context"
@@ -10,10 +10,13 @@ func ConnectNeo4j(ctx context.Context, uri, user, password string) (neo4j.Driver
 	driver, err := neo4j.NewDriver(
 		uri,
 		neo4j.BasicAuth(user, password, ""))
+	if err != nil {
+		return nil, err
+	}
 
 	err = driver.VerifyConnectivity(ctx)
 	if err != nil {
-		return driver, err
+		return nil, err
 	}
 
 	return driver, nil

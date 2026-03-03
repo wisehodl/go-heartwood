@@ -1,41 +1,43 @@
-package heartwood
+package graphstore
 
 import (
 	"context"
 	"fmt"
+	"git.wisehodl.dev/jay/go-heartwood/cypher"
+	"git.wisehodl.dev/jay/go-heartwood/graph"
 	"github.com/neo4j/neo4j-go-driver/v6/neo4j"
 )
 
 func MergeSubgraph(
 	ctx context.Context,
 	driver neo4j.Driver,
-	subgraph *StructuredSubgraph,
+	subgraph *graph.StructuredSubgraph,
 ) ([]neo4j.ResultSummary, error) {
 	// Validate subgraph
 	for _, nodeKey := range subgraph.NodeKeys() {
-		matchLabel, _, err := DeserializeNodeKey(nodeKey)
+		matchLabel, _, err := graph.DeserializeNodeKey(nodeKey)
 		if err != nil {
 			return nil, err
 		}
 
-		_, exists := subgraph.matchProvider.GetKeys(matchLabel)
+		_, exists := subgraph.MatchProvider().GetKeys(matchLabel)
 		if !exists {
 			return nil, fmt.Errorf("unknown match label: %s", matchLabel)
 		}
 	}
 
 	for _, relKey := range subgraph.RelKeys() {
-		_, startLabel, endLabel, err := DeserializeRelKey(relKey)
+		_, startLabel, endLabel, err := graph.DeserializeRelKey(relKey)
 		if err != nil {
 			return nil, err
 		}
 
-		_, exists := subgraph.matchProvider.GetKeys(startLabel)
+		_, exists := subgraph.MatchProvider().GetKeys(startLabel)
 		if !exists {
 			return nil, fmt.Errorf("unknown match label: %s", startLabel)
 		}
 
-		_, exists = subgraph.matchProvider.GetKeys(endLabel)
+		_, exists = subgraph.MatchProvider().GetKeys(endLabel)
 		if !exists {
 			return nil, fmt.Errorf("unknown match label: %s", endLabel)
 		}
@@ -49,12 +51,12 @@ func MergeSubgraph(
 		var resultSummaries []neo4j.ResultSummary
 
 		for _, nodeKey := range subgraph.NodeKeys() {
-			matchLabel, labels, _ := DeserializeNodeKey(nodeKey)
+			matchLabel, labels, _ := graph.DeserializeNodeKey(nodeKey)
 			nodeResultSummary, err := MergeNodes(
 				ctx, tx,
 				matchLabel,
 				labels,
-				subgraph.matchProvider,
+				subgraph.MatchProvider(),
 				subgraph.GetNodes(nodeKey),
 			)
 			if err != nil {
@@ -66,13 +68,13 @@ func MergeSubgraph(
 		}
 
 		for _, relKey := range subgraph.RelKeys() {
-			rtype, startLabel, endLabel, _ := DeserializeRelKey(relKey)
+			rtype, startLabel, endLabel, _ := graph.DeserializeRelKey(relKey)
 			relResultSummary, err := MergeRels(
 				ctx, tx,
 				rtype,
 				startLabel,
 				endLabel,
-				subgraph.matchProvider,
+				subgraph.MatchProvider(),
 				subgraph.GetRels(relKey),
 			)
 			if err != nil {
@@ -103,15 +105,15 @@ func MergeNodes(
 	tx neo4j.ManagedTransaction,
 	matchLabel string,
 	nodeLabels []string,
-	matchProvider MatchKeysProvider,
-	nodes []*Node,
+	matchProvider graph.MatchKeysProvider,
+	nodes []*graph.Node,
 ) (*neo4j.ResultSummary, error) {
-	cypherLabels := ToCypherLabels(nodeLabels)
+	cypherLabels := cypher.ToCypherLabels(nodeLabels)
 
 	matchKeys, _ := matchProvider.GetKeys(matchLabel)
-	cypherProps := ToCypherProps(matchKeys, "node.")
+	cypherProps := cypher.ToCypherProps(matchKeys, "node.")
 
-	serializedNodes := []*SerializedNode{}
+	serializedNodes := []*graph.SerializedNode{}
 	for _, node := range nodes {
 		serializedNodes = append(serializedNodes, node.Serialize())
 	}
@@ -148,20 +150,20 @@ func MergeRels(
 	rtype string,
 	startLabel string,
 	endLabel string,
-	matchProvider MatchKeysProvider,
-	rels []*Relationship,
+	matchProvider graph.MatchKeysProvider,
+	rels []*graph.Relationship,
 ) (*neo4j.ResultSummary, error) {
-	cypherType := ToCypherLabel(rtype)
-	startCypherLabel := ToCypherLabel(startLabel)
-	endCypherLabel := ToCypherLabel(endLabel)
+	cypherType := cypher.ToCypherLabel(rtype)
+	startCypherLabel := cypher.ToCypherLabel(startLabel)
+	endCypherLabel := cypher.ToCypherLabel(endLabel)
 
 	matchKeys, _ := matchProvider.GetKeys(startLabel)
-	startCypherProps := ToCypherProps(matchKeys, "rel.start.")
+	startCypherProps := cypher.ToCypherProps(matchKeys, "rel.start.")
 
 	matchKeys, _ = matchProvider.GetKeys(endLabel)
-	endCypherProps := ToCypherProps(matchKeys, "rel.end.")
+	endCypherProps := cypher.ToCypherProps(matchKeys, "rel.end.")
 
-	serializedRels := []*SerializedRel{}
+	serializedRels := []*graph.SerializedRel{}
 	for _, rel := range rels {
 		serializedRels = append(serializedRels, rel.Serialize())
 	}
