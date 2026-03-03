@@ -161,7 +161,7 @@ func TestStructuredSubgraphAddRel(t *testing.T) {
 
 	userNode := NewUserNode("pubkey1")
 	eventNode := NewEventNode("abc123")
-	rel, _ := NewSignedRel(userNode, eventNode, nil)
+	rel := NewSignedRel(userNode, eventNode, nil)
 
 	err := subgraph.AddRel(rel)
 

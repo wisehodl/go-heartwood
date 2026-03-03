@@ -40,11 +40,10 @@ func NewEventNode(id string) *Node {
 	return NewNode("Event", Properties{"id": id})
 }
 
-func NewTagNode(name string, value string, rest []string) *Node {
+func NewTagNode(name string, value string) *Node {
 	return NewNode("Tag", Properties{
 		"name":  name,
-		"value": value,
-		"rest":  rest})
+		"value": value})
 }
 
 // ========================================
@@ -52,26 +51,26 @@ func NewTagNode(name string, value string, rest []string) *Node {
 // ========================================
 
 func NewSignedRel(
-	start *Node, end *Node, props Properties) (*Relationship, error) {
+	start *Node, end *Node, props Properties) *Relationship {
 	return NewRelationshipWithValidation(
 		"SIGNED", "User", "Event", start, end, props)
 
 }
 
 func NewTaggedRel(
-	start *Node, end *Node, props Properties) (*Relationship, error) {
+	start *Node, end *Node, props Properties) *Relationship {
 	return NewRelationshipWithValidation(
 		"TAGGED", "Event", "Tag", start, end, props)
 }
 
 func NewReferencesEventRel(
-	start *Node, end *Node, props Properties) (*Relationship, error) {
+	start *Node, end *Node, props Properties) *Relationship {
 	return NewRelationshipWithValidation(
 		"REFERENCES", "Tag", "Event", start, end, props)
 }
 
 func NewReferencesUserRel(
-	start *Node, end *Node, props Properties) (*Relationship, error) {
+	start *Node, end *Node, props Properties) *Relationship {
 	return NewRelationshipWithValidation(
 		"REFERENCES", "Tag", "User", start, end, props)
 }
@@ -80,15 +79,13 @@ func NewReferencesUserRel(
 // Relationship Constructor Helpers
 // ========================================
 
-func validateNodeLabel(node *Node, role string, expectedLabel string) error {
+func validateNodeLabel(node *Node, role string, expectedLabel string) {
 	if !node.Labels.Contains(expectedLabel) {
-		return fmt.Errorf(
-			"expected %s node to have label '%s'. got %v",
+		panic(fmt.Errorf(
+			"expected %s node to have label %q. got %v",
 			role, expectedLabel, node.Labels.ToArray(),
-		)
+		))
 	}
-
-	return nil
 }
 
 func NewRelationshipWithValidation(
@@ -97,20 +94,12 @@ func NewRelationshipWithValidation(
 	endLabel string,
 	start *Node,
 	end *Node,
-	props Properties) (*Relationship, error) {
-	var err error
+	props Properties) *Relationship {
 
-	err = validateNodeLabel(start, "start", startLabel)
-	if err != nil {
-		return nil, err
-	}
+	validateNodeLabel(start, "start", startLabel)
+	validateNodeLabel(end, "end", endLabel)
 
-	err = validateNodeLabel(end, "end", endLabel)
-	if err != nil {
-		return nil, err
-	}
-
-	return NewRelationship(rtype, start, end, props), nil
+	return NewRelationship(rtype, start, end, props)
 }
 
 // ========================================

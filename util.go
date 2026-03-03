@@ -29,6 +29,22 @@ func (s Set[T]) Contains(item T) bool {
 	return exists
 }
 
+func (s Set[T]) Equal(other Set[T]) bool {
+	if len(s.inner) != len(other.inner) {
+		return false
+	}
+	for item := range s.inner {
+		if !other.Contains(item) {
+			return false
+		}
+	}
+	return true
+}
+
+func (s Set[T]) Length() int {
+	return len(s.inner)
+}
+
 func (s Set[T]) ToArray() []T {
 	array := []T{}
 	for i := range s.inner {

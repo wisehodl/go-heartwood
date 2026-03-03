@@ -7,11 +7,11 @@ import (
 
 func TestNewRelationshipWithValidation(t *testing.T) {
 	cases := []struct {
-		name        string
-		start       *Node
-		end         *Node
-		wantErr     bool
-		wantErrText string
+		name          string
+		start         *Node
+		end           *Node
+		wantPanic     bool
+		wantPanicText string
 	}{
 		{
 			name:  "valid start and end nodes",
@@ -19,24 +19,23 @@ func TestNewRelationshipWithValidation(t *testing.T) {
 			end:   NewEventNode("abc123"),
 		},
 		{
-			name:        "mismatched start node label",
-			start:       NewEventNode("abc123"),
-			end:         NewEventNode("abc123"),
-			wantErr:     true,
-			wantErrText: "expected start node to have label 'User'",
+			name:          "mismatched start node label",
+			start:         NewEventNode("abc123"),
+			end:           NewEventNode("abc123"),
+			wantPanic:     true,
+			wantPanicText: "expected start node to have label \"User\". got [Event]",
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			rel, err := NewSignedRel(tc.start, tc.end, nil)
-			if tc.wantErr {
-				assert.Error(t, err)
-				assert.ErrorContains(t, err, tc.wantErrText)
-				assert.Nil(t, rel)
+			if tc.wantPanic {
+				assert.PanicsWithError(t, tc.wantPanicText, func() {
+					NewSignedRel(tc.start, tc.end, nil)
+				})
 				return
 			}
-			assert.NoError(t, err)
+			rel := NewSignedRel(tc.start, tc.end, nil)
 			assert.Equal(t, "SIGNED", rel.Type)
 			assert.Contains(t, rel.Start.Labels.ToArray(), "User")
 			assert.Contains(t, rel.End.Labels.ToArray(), "Event")

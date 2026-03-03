@@ -191,6 +191,14 @@ func (s *Subgraph) AddRel(rel *Relationship) {
 	s.rels = append(s.rels, rel)
 }
 
+func (s *Subgraph) Nodes() []*Node {
+	return s.nodes
+}
+
+func (s *Subgraph) Rels() []*Relationship {
+	return s.rels
+}
+
 // ========================================
 // Structured Subgraph
 // ========================================
