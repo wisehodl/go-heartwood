@@ -34,40 +34,6 @@ func TestMatchKeys(t *testing.T) {
 	})
 }
 
-func TestNodeBatchKey(t *testing.T) {
-	matchLabel := "Event"
-	labels := []string{"Event", "AddressableEvent"}
-
-	// labels should be batched by key generator
-	expectedKey := "Event:AddressableEvent,Event"
-
-	// Test Serialization
-	batchKey := createNodeBatchKey(matchLabel, labels)
-	assert.Equal(t, expectedKey, batchKey)
-
-	// Test Deserialization
-	returnedMatchLabel, returnedLabels, err := DeserializeNodeBatchKey(batchKey)
-	assert.NoError(t, err)
-	assert.Equal(t, matchLabel, returnedMatchLabel)
-	assert.ElementsMatch(t, labels, returnedLabels)
-}
-
-func TestRelBatchKey(t *testing.T) {
-	rtype, startLabel, endLabel := "SIGNED", "User", "Event"
-	expectedKey := "SIGNED,User,Event"
-
-	// Test Serialization
-	batchKey := createRelBatchKey(rtype, startLabel, endLabel)
-	assert.Equal(t, expectedKey, batchKey)
-
-	// Test Deserialization
-	returnedRtype, returnedStartLabel, returnedEndLabel, err := DeserializeRelBatchKey(batchKey)
-	assert.NoError(t, err)
-	assert.Equal(t, rtype, returnedRtype)
-	assert.Equal(t, startLabel, returnedStartLabel)
-	assert.Equal(t, endLabel, returnedEndLabel)
-}
-
 func TestMatchProps(t *testing.T) {
 	matchKeys := &SimpleMatchKeys{
 		Keys: map[string][]string{
@@ -130,43 +96,4 @@ func TestMatchProps(t *testing.T) {
 			assert.Equal(t, tc.wantMatchProps, props)
 		})
 	}
-}
-
-func TestStructuredSubgraphAddNode(t *testing.T) {
-	matchKeys := NewSimpleMatchKeys()
-	subgraph := NewStructuredSubgraph(matchKeys)
-	node := NewEventNode("abc123")
-
-	err := subgraph.AddNode(node)
-
-	assert.NoError(t, err)
-	assert.Equal(t, 1, subgraph.NodeCount())
-	assert.Equal(t, []*Node{node}, subgraph.GetNodes("Event:Event"))
-}
-
-func TestStructuredSubgraphAddNodeInvalid(t *testing.T) {
-	matchKeys := NewSimpleMatchKeys()
-	subgraph := NewStructuredSubgraph(matchKeys)
-	node := NewNode("Event", Properties{})
-
-	err := subgraph.AddNode(node)
-
-	assert.ErrorContains(t, err, "invalid node: missing property id")
-	assert.Equal(t, 0, subgraph.NodeCount())
-}
-
-func TestStructuredSubgraphAddRel(t *testing.T) {
-	matchKeys := NewSimpleMatchKeys()
-	subgraph := NewStructuredSubgraph(matchKeys)
-
-	userNode := NewUserNode("pubkey1")
-	eventNode := NewEventNode("abc123")
-	rel := NewSignedRel(userNode, eventNode, nil)
-
-	err := subgraph.AddRel(rel)
-
-	assert.NoError(t, err)
-	assert.Equal(t, 1, subgraph.RelCount())
-	assert.Equal(t, []*Relationship{rel}, subgraph.GetRels("SIGNED,User,Event"))
-
 }
