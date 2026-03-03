@@ -65,10 +65,10 @@ func EventToSubgraph(e roots.Event, p ExpanderPipeline) *EventSubgraph {
 	s := NewEventSubgraph()
 
 	// Create core entities
-	eventNode := newEventNode(e)
-	userNode := newUserNode(e)
+	eventNode := newEventNode(e.ID, e.CreatedAt, e.Kind, e.Content)
+	userNode := newUserNode(e.PubKey)
 	signedRel := newSignedRel(userNode, eventNode)
-	tagNodes := newTagNodes(e)
+	tagNodes := newTagNodes(e.Tags)
 	tagRels := newTagRels(eventNode, tagNodes)
 
 	// Populate subgraph
@@ -90,25 +90,25 @@ func EventToSubgraph(e roots.Event, p ExpanderPipeline) *EventSubgraph {
 	return s
 }
 
-func newEventNode(e roots.Event) *graph.Node {
-	eventNode := graph.NewEventNode(e.ID)
-	eventNode.Props["created_at"] = e.CreatedAt
-	eventNode.Props["kind"] = e.Kind
-	eventNode.Props["content"] = e.Content
+func newEventNode(eventID string, createdAt int, kind int, content string) *graph.Node {
+	eventNode := graph.NewEventNode(eventID)
+	eventNode.Props["created_at"] = createdAt
+	eventNode.Props["kind"] = kind
+	eventNode.Props["content"] = content
 	return eventNode
 }
 
-func newUserNode(e roots.Event) *graph.Node {
-	return graph.NewUserNode(e.PubKey)
+func newUserNode(pubkey string) *graph.Node {
+	return graph.NewUserNode(pubkey)
 }
 
 func newSignedRel(user, event *graph.Node) *graph.Relationship {
 	return graph.NewSignedRel(user, event, nil)
 }
 
-func newTagNodes(e roots.Event) []*graph.Node {
+func newTagNodes(tags []roots.Tag) []*graph.Node {
 	nodes := []*graph.Node{}
-	for _, tag := range e.Tags {
+	for _, tag := range tags {
 		if !isValidTag(tag) {
 			continue
 		}

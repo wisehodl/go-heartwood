@@ -31,7 +31,7 @@ type Distance struct {
 }
 
 func MarshalJSON(f HeartwoodFilter) ([]byte, error) {
-	legacyFilter := f.Root
+	rootFilter := f.Root
 
 	if f.Graph != nil {
 		graphArray, err := marshalGraphArray(f.Graph)
@@ -44,14 +44,14 @@ func MarshalJSON(f HeartwoodFilter) ([]byte, error) {
 			return nil, fmt.Errorf("error marshalling graph field: %w", err)
 		}
 
-		if legacyFilter.Extensions == nil {
-			legacyFilter.Extensions = make(roots.FilterExtensions)
+		if rootFilter.Extensions == nil {
+			rootFilter.Extensions = make(roots.FilterExtensions)
 		}
 
-		legacyFilter.Extensions["graph"] = graphField
+		rootFilter.Extensions["graph"] = graphField
 	}
 
-	return roots.MarshalJSON(legacyFilter)
+	return roots.MarshalJSON(rootFilter)
 }
 
 func UnmarshalJSON(data []byte, f *HeartwoodFilter) error {

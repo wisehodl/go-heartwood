@@ -59,7 +59,7 @@ func TestMarshalJSON(t *testing.T) {
 			expected: `{}`,
 		},
 		{
-			name: "legacy fields only",
+			name: "root fields only",
 			filter: HeartwoodFilter{
 				Root: roots.Filter{
 					IDs:   []string{"abc"},
@@ -86,7 +86,7 @@ func TestMarshalJSON(t *testing.T) {
 			expected: `{"graph":[{"kinds":[1]}]}`,
 		},
 		{
-			name: "legacy and graph present",
+			name: "root and graph present",
 			filter: HeartwoodFilter{
 				Root: roots.Filter{
 					IDs: []string{"abc"},
@@ -125,7 +125,7 @@ func TestUnmarshalJSON(t *testing.T) {
 			expected: HeartwoodFilter{},
 		},
 		{
-			name:  "legacy fields only",
+			name:  "root fields only",
 			input: `{"ids":["abc"],"kinds":[1],"since":1000}`,
 			expected: HeartwoodFilter{
 				Root: roots.Filter{
@@ -152,7 +152,7 @@ func TestUnmarshalJSON(t *testing.T) {
 			},
 		},
 		{
-			name:  "legacy and graph present",
+			name:  "root and graph present",
 			input: `{"ids":["abc"],"graph":[{"kinds":[1]}]}`,
 			expected: HeartwoodFilter{
 				Root: roots.Filter{
@@ -164,7 +164,7 @@ func TestUnmarshalJSON(t *testing.T) {
 			},
 		},
 		{
-			name:  "graph is removed from legacy extensions",
+			name:  "graph is removed from root extensions",
 			input: `{"ids":["abc"],"graph":[{"kinds":[1]}],"search":"bitcoin"}`,
 			expected: HeartwoodFilter{
 				Root: roots.Filter{
@@ -187,7 +187,7 @@ func TestUnmarshalJSON(t *testing.T) {
 			assert.NoError(t, err)
 			expectEqualHeartwoodFilters(t, result, tc.expected)
 
-			// Ensure graph extension was popped from legacy filter
+			// Ensure graph extension was popped from root filter
 			assert.Nil(t, result.Root.Extensions["graph"])
 		})
 	}

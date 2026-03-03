@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestMatchKeys(t *testing.T) {
+func TestSimpleMatchKeys(t *testing.T) {
 	matchKeys := &SimpleMatchKeys{
 		Keys: map[string][]string{
 			"User":  {"pubkey"},
@@ -34,7 +34,7 @@ func TestMatchKeys(t *testing.T) {
 	})
 }
 
-func TestMatchProps(t *testing.T) {
+func TestSimpleMatchProps(t *testing.T) {
 	matchKeys := &SimpleMatchKeys{
 		Keys: map[string][]string{
 			"User":  {"pubkey"},
