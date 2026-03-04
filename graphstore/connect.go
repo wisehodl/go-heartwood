@@ -6,7 +6,7 @@ import (
 )
 
 // ConnectNeo4j creates a new Neo4j driver and verifies its connectivity.
-func ConnectNeo4j(ctx context.Context, uri, user, password string) (neo4j.Driver, error) {
+func ConnectNeo4j(ctx context.Context, uri, user, password string) (*neo4j.Driver, error) {
 	driver, err := neo4j.NewDriver(
 		uri,
 		neo4j.BasicAuth(user, password, ""))
@@ -19,5 +19,5 @@ func ConnectNeo4j(ctx context.Context, uri, user, password string) (neo4j.Driver
 		return nil, err
 	}
 
-	return driver, nil
+	return &driver, nil
 }
