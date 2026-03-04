@@ -1,4 +1,4 @@
-package graph
+package heartwood
 
 import (
 	"github.com/stretchr/testify/assert"

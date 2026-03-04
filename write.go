@@ -1,20 +1,25 @@
 package heartwood
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	roots "git.wisehodl.dev/jay/go-roots/events"
-	"github.com/boltdb/bolt"
 	"github.com/neo4j/neo4j-go-driver/v6/neo4j"
 	"sync"
-	// "git.wisehodl.dev/jay/go-heartwood/graph"
 	"time"
 )
+
+type WriteOptions struct {
+	Expanders       ExpanderPipeline
+	KVReadBatchSize int
+}
 
 type EventFollower struct {
 	ID       string
 	JSON     string
 	Event    roots.Event
-	Subgraph EventSubgraph
+	Subgraph *EventSubgraph
 	Error    error
 }
 
@@ -34,11 +39,18 @@ type WriteReport struct {
 
 func WriteEvents(
 	events []string,
-	driver *neo4j.Driver, boltdb *bolt.DB,
+	graphdb GraphDB, boltdb BoltDB,
+	opts *WriteOptions,
 ) (WriteReport, error) {
 	start := time.Now()
 
-	err := setupBoltDB(boltdb)
+	if opts == nil {
+		opts = &WriteOptions{}
+	}
+
+	setDefaultWriteOptions(opts)
+
+	err := boltdb.Setup()
 	if err != nil {
 		return WriteReport{}, fmt.Errorf("error setting up bolt db: %w", err)
 	}
@@ -81,7 +93,10 @@ func WriteEvents(
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		enforcePolicyRules(driver, boltdb, parsedChan, queuedChan, skippedChan)
+		enforcePolicyRules(
+			graphdb, boltdb,
+			opts.KVReadBatchSize,
+			parsedChan, queuedChan, skippedChan)
 	}()
 
 	// Collect Skipped Events
@@ -99,7 +114,7 @@ func WriteEvents(
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		convertEventsToSubgraphs(queuedChan, convertedChan)
+		convertEventsToSubgraphs(opts.Expanders, queuedChan, convertedChan)
 	}()
 
 	// Write Events To Databases
@@ -109,7 +124,7 @@ func WriteEvents(
 	go func() {
 		defer wg.Done()
 		writeEventsToDatabases(
-			driver, boltdb,
+			graphdb, boltdb,
 			convertedChan, writeResultChan)
 	}()
 
@@ -139,20 +154,102 @@ func WriteEvents(
 	}, writeResult.Error
 }
 
-func setupBoltDB(boltdb *bolt.DB) error
+func setDefaultWriteOptions(opts *WriteOptions) {
+	if opts.Expanders == nil {
+		opts.Expanders = NewExpanderPipeline(DefaultExpanders()...)
+	}
+	if opts.KVReadBatchSize == 0 {
+		opts.KVReadBatchSize = 100
+	}
+}
 
-func createEventFollowers(jsonChan chan string, eventChan chan EventFollower)
+func createEventFollowers(jsonChan chan string, eventChan chan EventFollower) {
+	for json := range jsonChan {
+		eventChan <- EventFollower{JSON: json}
+	}
+	close(eventChan)
+}
 
-func parseEventJSON(inChan, parsedChan, invalidChan chan EventFollower)
+func parseEventJSON(inChan, parsedChan, invalidChan chan EventFollower) {
+	for follower := range inChan {
+		var event roots.Event
+		jsonBytes := []byte(follower.JSON)
+		err := json.Unmarshal(jsonBytes, &event)
+		if err != nil {
+			follower.Error = err
+			invalidChan <- follower
+			continue
+		}
+
+		follower.ID = event.ID
+		follower.Event = event
+		parsedChan <- follower
+	}
+
+	close(parsedChan)
+	close(invalidChan)
+}
 
 func enforcePolicyRules(
-	driver *neo4j.Driver, boltdb *bolt.DB,
-	inChan, queuedChan, skippedChan chan EventFollower)
+	graphdb GraphDB, boltdb BoltDB,
+	batchSize int,
+	inChan, queuedChan, skippedChan chan EventFollower,
+) {
+	batch := []EventFollower{}
 
-func convertEventsToSubgraphs(inChan, convertedChan chan EventFollower)
+	for follower := range inChan {
+		batch = append(batch, follower)
+
+		if len(batch) >= batchSize {
+			processPolicyRulesBatch(boltdb, batch, queuedChan, skippedChan)
+			batch = []EventFollower{}
+		}
+	}
+
+	if len(batch) > 0 {
+		processPolicyRulesBatch(boltdb, batch, queuedChan, skippedChan)
+	}
+
+	close(queuedChan)
+	close(skippedChan)
+}
+
+func processPolicyRulesBatch(
+	boltdb BoltDB,
+	batch []EventFollower,
+	queuedChan, skippedChan chan EventFollower,
+) {
+	eventIDs := []string{}
+
+	for _, follower := range batch {
+		eventIDs = append(eventIDs, follower.ID)
+	}
+
+	existsMap := boltdb.BatchCheckEventsExist(eventIDs)
+
+	for _, follower := range batch {
+		if existsMap[follower.ID] {
+			skippedChan <- follower
+		} else {
+			queuedChan <- follower
+		}
+	}
+}
+
+func convertEventsToSubgraphs(
+	expanders ExpanderPipeline,
+	inChan, convertedChan chan EventFollower,
+) {
+	for follower := range inChan {
+		subgraph := EventToSubgraph(follower.Event, expanders)
+		follower.Subgraph = subgraph
+		convertedChan <- follower
+	}
+	close(convertedChan)
+}
 
 func writeEventsToDatabases(
-	driver *neo4j.Driver, boltdb *bolt.DB,
+	graphdb GraphDB, boltdb BoltDB,
 	inChan chan EventFollower,
 	resultChan chan WriteResult,
 ) {
@@ -171,12 +268,12 @@ func writeEventsToDatabases(
 		defer wg.Done()
 		writeEventsToKVStore(
 			boltdb,
-			kvEventChan, kvErrorChan)
+			kvEventChan, kvWriteDone, kvErrorChan)
 	}()
 	go func() {
 		defer wg.Done()
-		writeEventsToGraphStore(
-			driver,
+		writeEventsToGraphDriver(
+			graphdb,
 			graphEventChan, kvWriteDone, graphResultChan)
 	}()
 
@@ -191,37 +288,86 @@ func writeEventsToDatabases(
 	wg.Wait()
 
 	kvError := <-kvErrorChan
-	if kvError != nil {
-		close(kvWriteDone) // signal abort
-		resultChan <- WriteResult{Error: kvError}
-		return
-	}
-
-	// Signal graph writer to proceed
-	kvWriteDone <- struct{}{}
-	close(kvWriteDone)
-
 	graphResult := <-graphResultChan
-	if graphResult.Error != nil {
-		resultChan <- WriteResult{Error: graphResult.Error}
-		return
+
+	var finalErr error
+	if kvError != nil && graphResult.Error != nil {
+		finalErr = fmt.Errorf("kvstore: %w; graphstore: %v", kvError, graphResult.Error)
+	} else if kvError != nil {
+		finalErr = fmt.Errorf("kvstore: %w", kvError)
+	} else if graphResult.Error != nil {
+		finalErr = fmt.Errorf("graphstore: %w", graphResult.Error)
 	}
 
-	resultChan <- graphResult
-
+	resultChan <- WriteResult{
+		ResultSummaries: graphResult.ResultSummaries,
+		Error:           finalErr,
+	}
 }
 
 func writeEventsToKVStore(
-	boltdb *bolt.DB,
+	boltdb BoltDB,
 	inChan chan EventFollower,
+	done chan struct{},
 	resultChan chan error,
-)
+) {
+	events := []EventBlob{}
 
-func writeEventsToGraphStore(
-	driver *neo4j.Driver,
+	for follower := range inChan {
+		events = append(events,
+			EventBlob{ID: follower.ID, JSON: follower.JSON})
+	}
+
+	err := boltdb.BatchWriteEvents(events)
+	if err != nil {
+		close(done)
+	} else {
+		done <- struct{}{}
+		close(done)
+	}
+
+	resultChan <- err
+	close(resultChan)
+}
+
+func writeEventsToGraphDriver(
+	graphdb GraphDB,
 	inChan chan EventFollower,
 	start chan struct{},
 	resultChan chan WriteResult,
-)
+) {
+	matchKeys := NewSimpleMatchKeys()
+	batch := NewBatchSubgraph(matchKeys)
 
-func collectEvents(inChan chan EventFollower, resultChan chan []EventFollower)
+	for follower := range inChan {
+		for _, node := range follower.Subgraph.Nodes() {
+			batch.AddNode(node)
+		}
+		for _, rel := range follower.Subgraph.Rels() {
+			batch.AddRel(rel)
+		}
+	}
+
+	_, ok := <-start
+	if !ok {
+		resultChan <- WriteResult{Error: fmt.Errorf("kv write failed, aborting graph write")}
+		close(resultChan)
+		return
+	}
+
+	summaries, err := graphdb.MergeSubgraph(context.Background(), batch)
+	resultChan <- WriteResult{
+		ResultSummaries: summaries,
+		Error:           err,
+	}
+	close(resultChan)
+}
+
+func collectEvents(inChan chan EventFollower, resultChan chan []EventFollower) {
+	collected := []EventFollower{}
+	for follower := range inChan {
+		collected = append(collected, follower)
+	}
+	resultChan <- collected
+	close(resultChan)
+}

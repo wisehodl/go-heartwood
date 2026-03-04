@@ -1,10 +1,8 @@
-package graphstore
+package heartwood
 
 import (
 	"context"
 	"fmt"
-	"git.wisehodl.dev/jay/go-heartwood/cypher"
-	"git.wisehodl.dev/jay/go-heartwood/graph"
 	"github.com/neo4j/neo4j-go-driver/v6/neo4j"
 	"sort"
 	"strings"
@@ -16,7 +14,7 @@ type NodeBatch struct {
 	MatchLabel string
 	Labels     []string
 	MatchKeys  []string
-	Nodes      []*graph.Node
+	Nodes      []*Node
 }
 
 type RelBatch struct {
@@ -25,24 +23,24 @@ type RelBatch struct {
 	StartMatchKeys []string
 	EndLabel       string
 	EndMatchKeys   []string
-	Rels           []*graph.Relationship
+	Rels           []*Relationship
 }
 
 type BatchSubgraph struct {
-	nodes         map[string][]*graph.Node
-	rels          map[string][]*graph.Relationship
-	matchProvider graph.MatchKeysProvider
+	nodes         map[string][]*Node
+	rels          map[string][]*Relationship
+	matchProvider MatchKeysProvider
 }
 
-func NewBatchSubgraph(matchProvider graph.MatchKeysProvider) *BatchSubgraph {
+func NewBatchSubgraph(matchProvider MatchKeysProvider) *BatchSubgraph {
 	return &BatchSubgraph{
-		nodes:         make(map[string][]*graph.Node),
-		rels:          make(map[string][]*graph.Relationship),
+		nodes:         make(map[string][]*Node),
+		rels:          make(map[string][]*Relationship),
 		matchProvider: matchProvider,
 	}
 }
 
-func (s *BatchSubgraph) AddNode(node *graph.Node) error {
+func (s *BatchSubgraph) AddNode(node *Node) error {
 
 	// Verify that the node has defined match property values.
 	matchLabel, _, err := node.MatchProps(s.matchProvider)
@@ -54,16 +52,16 @@ func (s *BatchSubgraph) AddNode(node *graph.Node) error {
 	batchKey := createNodeBatchKey(matchLabel, node.Labels.ToArray())
 
 	if _, exists := s.nodes[batchKey]; !exists {
-		s.nodes[batchKey] = []*graph.Node{}
+		s.nodes[batchKey] = []*Node{}
 	}
 
-	// Add the node to the subgraph.
+	// Add the node to the sub
 	s.nodes[batchKey] = append(s.nodes[batchKey], node)
 
 	return nil
 }
 
-func (s *BatchSubgraph) AddRel(rel *graph.Relationship) error {
+func (s *BatchSubgraph) AddRel(rel *Relationship) error {
 
 	// Verify that the start node has defined match property values.
 	startLabel, _, err := rel.Start.MatchProps(s.matchProvider)
@@ -81,10 +79,10 @@ func (s *BatchSubgraph) AddRel(rel *graph.Relationship) error {
 	batchKey := createRelBatchKey(rel.Type, startLabel, endLabel)
 
 	if _, exists := s.rels[batchKey]; !exists {
-		s.rels[batchKey] = []*graph.Relationship{}
+		s.rels[batchKey] = []*Relationship{}
 	}
 
-	// Add the relationship to the subgraph.
+	// Add the relationship to the sub
 	s.rels[batchKey] = append(s.rels[batchKey], rel)
 
 	return nil
@@ -287,10 +285,10 @@ func MergeNodes(
 	tx neo4j.ManagedTransaction,
 	batch NodeBatch,
 ) (*neo4j.ResultSummary, error) {
-	cypherLabels := cypher.ToCypherLabels(batch.Labels)
-	cypherProps := cypher.ToCypherProps(batch.MatchKeys, "node.")
+	cypherLabels := ToCypherLabels(batch.Labels)
+	cypherProps := ToCypherProps(batch.MatchKeys, "node.")
 
-	serializedNodes := []*graph.SerializedNode{}
+	serializedNodes := []*SerializedNode{}
 	for _, node := range batch.Nodes {
 		serializedNodes = append(serializedNodes, node.Serialize())
 	}
@@ -326,13 +324,13 @@ func MergeRels(
 	tx neo4j.ManagedTransaction,
 	batch RelBatch,
 ) (*neo4j.ResultSummary, error) {
-	cypherType := cypher.ToCypherLabel(batch.Type)
-	startCypherLabel := cypher.ToCypherLabel(batch.StartLabel)
-	endCypherLabel := cypher.ToCypherLabel(batch.EndLabel)
-	startCypherProps := cypher.ToCypherProps(batch.StartMatchKeys, "rel.start.")
-	endCypherProps := cypher.ToCypherProps(batch.EndMatchKeys, "rel.end.")
+	cypherType := ToCypherLabel(batch.Type)
+	startCypherLabel := ToCypherLabel(batch.StartLabel)
+	endCypherLabel := ToCypherLabel(batch.EndLabel)
+	startCypherProps := ToCypherProps(batch.StartMatchKeys, "rel.start.")
+	endCypherProps := ToCypherProps(batch.EndMatchKeys, "rel.end.")
 
-	serializedRels := []*graph.SerializedRel{}
+	serializedRels := []*SerializedRel{}
 	for _, rel := range batch.Rels {
 		serializedRels = append(serializedRels, rel.Serialize())
 	}

@@ -1,7 +1,6 @@
 package heartwood
 
 import (
-	"git.wisehodl.dev/jay/go-heartwood/graph"
 	roots "git.wisehodl.dev/jay/go-roots/events"
 )
 
@@ -39,10 +38,10 @@ func ExpandTaggedEvents(e roots.Event, s *EventSubgraph) {
 			continue
 		}
 
-		referencedEvent := graph.NewEventNode(value)
+		referencedEvent := NewEventNode(value)
 
 		s.AddNode(referencedEvent)
-		s.AddRel(graph.NewReferencesEventRel(tagNode, referencedEvent, nil))
+		s.AddRel(NewReferencesEventRel(tagNode, referencedEvent, nil))
 	}
 }
 
@@ -64,16 +63,16 @@ func ExpandTaggedUsers(e roots.Event, s *EventSubgraph) {
 			continue
 		}
 
-		referencedEvent := graph.NewUserNode(value)
+		referencedEvent := NewUserNode(value)
 
 		s.AddNode(referencedEvent)
-		s.AddRel(graph.NewReferencesUserRel(tagNode, referencedEvent, nil))
+		s.AddRel(NewReferencesUserRel(tagNode, referencedEvent, nil))
 	}
 }
 
 // Helpers
 
-func findTagNode(nodes []*graph.Node, name, value string) *graph.Node {
+func findTagNode(nodes []*Node, name, value string) *Node {
 	for _, node := range nodes {
 		if node.Props["name"] == name && node.Props["value"] == value {
 			return node

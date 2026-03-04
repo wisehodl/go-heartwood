@@ -1,7 +1,4 @@
-// This module defines types and functions for working with Neo4j graph
-// entities.
-
-package graph
+package heartwood
 
 import (
 	"fmt"

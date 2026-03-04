@@ -1,42 +1,41 @@
 package heartwood
 
 import (
-	"git.wisehodl.dev/jay/go-heartwood/graph"
 	roots "git.wisehodl.dev/jay/go-roots/events"
 )
 
 // Event subgraph struct
 
 type EventSubgraph struct {
-	nodes []*graph.Node
-	rels  []*graph.Relationship
+	nodes []*Node
+	rels  []*Relationship
 }
 
 func NewEventSubgraph() *EventSubgraph {
 	return &EventSubgraph{
-		nodes: []*graph.Node{},
-		rels:  []*graph.Relationship{},
+		nodes: []*Node{},
+		rels:  []*Relationship{},
 	}
 }
 
-func (s *EventSubgraph) AddNode(node *graph.Node) {
+func (s *EventSubgraph) AddNode(node *Node) {
 	s.nodes = append(s.nodes, node)
 }
 
-func (s *EventSubgraph) AddRel(rel *graph.Relationship) {
+func (s *EventSubgraph) AddRel(rel *Relationship) {
 	s.rels = append(s.rels, rel)
 }
 
-func (s *EventSubgraph) Nodes() []*graph.Node {
+func (s *EventSubgraph) Nodes() []*Node {
 	return s.nodes
 }
 
-func (s *EventSubgraph) Rels() []*graph.Relationship {
+func (s *EventSubgraph) Rels() []*Relationship {
 	return s.rels
 }
 
-func (s *EventSubgraph) NodesByLabel(label string) []*graph.Node {
-	nodes := []*graph.Node{}
+func (s *EventSubgraph) NodesByLabel(label string) []*Node {
+	nodes := []*Node{}
 	for _, node := range s.nodes {
 		if node.Labels.Contains(label) {
 			nodes = append(nodes, node)
@@ -90,37 +89,37 @@ func EventToSubgraph(e roots.Event, p ExpanderPipeline) *EventSubgraph {
 	return s
 }
 
-func newEventNode(eventID string, createdAt int, kind int, content string) *graph.Node {
-	eventNode := graph.NewEventNode(eventID)
+func newEventNode(eventID string, createdAt int, kind int, content string) *Node {
+	eventNode := NewEventNode(eventID)
 	eventNode.Props["created_at"] = createdAt
 	eventNode.Props["kind"] = kind
 	eventNode.Props["content"] = content
 	return eventNode
 }
 
-func newUserNode(pubkey string) *graph.Node {
-	return graph.NewUserNode(pubkey)
+func newUserNode(pubkey string) *Node {
+	return NewUserNode(pubkey)
 }
 
-func newSignedRel(user, event *graph.Node) *graph.Relationship {
-	return graph.NewSignedRel(user, event, nil)
+func newSignedRel(user, event *Node) *Relationship {
+	return NewSignedRel(user, event, nil)
 }
 
-func newTagNodes(tags []roots.Tag) []*graph.Node {
-	nodes := []*graph.Node{}
+func newTagNodes(tags []roots.Tag) []*Node {
+	nodes := []*Node{}
 	for _, tag := range tags {
 		if !isValidTag(tag) {
 			continue
 		}
-		nodes = append(nodes, graph.NewTagNode(tag[0], tag[1]))
+		nodes = append(nodes, NewTagNode(tag[0], tag[1]))
 	}
 	return nodes
 }
 
-func newTagRels(event *graph.Node, tags []*graph.Node) []*graph.Relationship {
-	rels := []*graph.Relationship{}
+func newTagRels(event *Node, tags []*Node) []*Relationship {
+	rels := []*Relationship{}
 	for _, tag := range tags {
-		rels = append(rels, graph.NewTaggedRel(event, tag, nil))
+		rels = append(rels, NewTaggedRel(event, tag, nil))
 	}
 	return rels
 }

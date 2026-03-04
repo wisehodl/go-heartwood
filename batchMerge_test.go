@@ -1,7 +1,6 @@
-package graphstore
+package heartwood
 
 import (
-	"git.wisehodl.dev/jay/go-heartwood/graph"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -41,21 +40,21 @@ func TestRelBatchKey(t *testing.T) {
 }
 
 func TestBatchSubgraphAddNode(t *testing.T) {
-	matchKeys := graph.NewSimpleMatchKeys()
+	matchKeys := NewSimpleMatchKeys()
 	subgraph := NewBatchSubgraph(matchKeys)
-	node := graph.NewEventNode("abc123")
+	node := NewEventNode("abc123")
 
 	err := subgraph.AddNode(node)
 
 	assert.NoError(t, err)
 	assert.Equal(t, 1, subgraph.NodeCount())
-	assert.Equal(t, []*graph.Node{node}, subgraph.nodes["Event:Event"])
+	assert.Equal(t, []*Node{node}, subgraph.nodes["Event:Event"])
 }
 
 func TestBatchSubgraphAddNodeInvalid(t *testing.T) {
-	matchKeys := graph.NewSimpleMatchKeys()
+	matchKeys := NewSimpleMatchKeys()
 	subgraph := NewBatchSubgraph(matchKeys)
-	node := graph.NewNode("Event", graph.Properties{})
+	node := NewNode("Event", Properties{})
 
 	err := subgraph.AddNode(node)
 
@@ -64,24 +63,24 @@ func TestBatchSubgraphAddNodeInvalid(t *testing.T) {
 }
 
 func TestBatchSubgraphAddRel(t *testing.T) {
-	matchKeys := graph.NewSimpleMatchKeys()
+	matchKeys := NewSimpleMatchKeys()
 	subgraph := NewBatchSubgraph(matchKeys)
 
-	userNode := graph.NewUserNode("pubkey1")
-	eventNode := graph.NewEventNode("abc123")
-	rel := graph.NewSignedRel(userNode, eventNode, nil)
+	userNode := NewUserNode("pubkey1")
+	eventNode := NewEventNode("abc123")
+	rel := NewSignedRel(userNode, eventNode, nil)
 
 	err := subgraph.AddRel(rel)
 
 	assert.NoError(t, err)
 	assert.Equal(t, 1, subgraph.RelCount())
-	assert.Equal(t, []*graph.Relationship{rel}, subgraph.rels["SIGNED,User,Event"])
+	assert.Equal(t, []*Relationship{rel}, subgraph.rels["SIGNED,User,Event"])
 }
 
 func TestNodeBatches(t *testing.T) {
-	matchKeys := graph.NewSimpleMatchKeys()
+	matchKeys := NewSimpleMatchKeys()
 	subgraph := NewBatchSubgraph(matchKeys)
-	node := graph.NewEventNode("abc123")
+	node := NewEventNode("abc123")
 	subgraph.AddNode(node)
 
 	batches, err := subgraph.NodeBatches()
@@ -91,15 +90,15 @@ func TestNodeBatches(t *testing.T) {
 	assert.Equal(t, "Event", batches[0].MatchLabel)
 	assert.ElementsMatch(t, []string{"Event"}, batches[0].Labels)
 	assert.ElementsMatch(t, []string{"id"}, batches[0].MatchKeys)
-	assert.Equal(t, []*graph.Node{node}, batches[0].Nodes)
+	assert.Equal(t, []*Node{node}, batches[0].Nodes)
 }
 
 func TestRelBatches(t *testing.T) {
-	matchKeys := graph.NewSimpleMatchKeys()
+	matchKeys := NewSimpleMatchKeys()
 	subgraph := NewBatchSubgraph(matchKeys)
-	userNode := graph.NewUserNode("pubkey1")
-	eventNode := graph.NewEventNode("abc123")
-	rel := graph.NewSignedRel(userNode, eventNode, nil)
+	userNode := NewUserNode("pubkey1")
+	eventNode := NewEventNode("abc123")
+	rel := NewSignedRel(userNode, eventNode, nil)
 	subgraph.AddRel(rel)
 
 	batches, err := subgraph.RelBatches()
@@ -111,5 +110,5 @@ func TestRelBatches(t *testing.T) {
 	assert.ElementsMatch(t, []string{"pubkey"}, batches[0].StartMatchKeys)
 	assert.Equal(t, "Event", batches[0].EndLabel)
 	assert.ElementsMatch(t, []string{"id"}, batches[0].EndMatchKeys)
-	assert.Equal(t, []*graph.Relationship{rel}, batches[0].Rels)
+	assert.Equal(t, []*Relationship{rel}, batches[0].Rels)
 }
