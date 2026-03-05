@@ -3,6 +3,7 @@ package heartwood
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	roots "git.wisehodl.dev/jay/go-roots/events"
 	"github.com/boltdb/bolt"
@@ -36,6 +37,10 @@ type WriteReport struct {
 	Duration             time.Duration
 	Error                error
 }
+
+var ErrMalformedJSON = errors.New("unrecognized event format")
+var ErrInvalidEvent = errors.New("invalid event")
+var ErrDuplicate = errors.New("event already exists")
 
 func WriteEvents(
 	events [][]byte,
@@ -154,14 +159,14 @@ func parseEventJSON(wg *sync.WaitGroup, inChan, parsedChan, excludedChan chan Ev
 		jsonBytes := traveller.JSON
 		err := json.Unmarshal(jsonBytes, &event)
 		if err != nil {
-			traveller.Error = fmt.Errorf("rejected: unrecognized event format: %w", err)
+			traveller.Error = fmt.Errorf("rejected: %w: %w", ErrMalformedJSON, err)
 			excludedChan <- traveller
 			continue
 		}
 
 		err = roots.Validate(event)
 		if err != nil {
-			traveller.Error = fmt.Errorf("rejected: invalid event: %w", err)
+			traveller.Error = fmt.Errorf("rejected: %w: %w", ErrInvalidEvent, err)
 			excludedChan <- traveller
 			continue
 		}
@@ -216,7 +221,7 @@ func processPolicyRulesBatch(
 
 	for _, traveller := range batch {
 		if existsMap[traveller.ID] {
-			traveller.Error = fmt.Errorf("skipped: event already exists")
+			traveller.Error = fmt.Errorf("skipped: %w", ErrDuplicate)
 			skippedChan <- traveller
 		} else {
 			queuedChan <- traveller
