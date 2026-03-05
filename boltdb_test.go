@@ -58,7 +58,7 @@ func TestBatchCheckEventsExist(t *testing.T) {
 		{
 			name: "some exist",
 			setupEvents: []EventBlob{
-				{ID: "id1", JSON: `{"test":1}`},
+				{ID: []byte("id1"), JSON: []byte(`{"test":1}`)},
 			},
 			checkIDs: []string{"id1", "id2"},
 			expectedMap: map[string]bool{
@@ -69,8 +69,8 @@ func TestBatchCheckEventsExist(t *testing.T) {
 		{
 			name: "all exist",
 			setupEvents: []EventBlob{
-				{ID: "id1", JSON: `{"test":1}`},
-				{ID: "id2", JSON: `{"test":2}`},
+				{ID: []byte("id1"), JSON: []byte(`{"test":1}`)},
+				{ID: []byte("id2"), JSON: []byte(`{"test":2}`)},
 			},
 			checkIDs: []string{"id1", "id2"},
 			expectedMap: map[string]bool{
@@ -121,7 +121,7 @@ func TestBatchWriteEvents(t *testing.T) {
 		{
 			name: "single event",
 			events: []EventBlob{
-				{ID: "id1", JSON: `{"test":1}`},
+				{ID: []byte("id1"), JSON: []byte(`{"test":1}`)},
 			},
 			verifyID:     "id1",
 			expectedJSON: `{"test":1}`,
@@ -129,9 +129,9 @@ func TestBatchWriteEvents(t *testing.T) {
 		{
 			name: "multiple events",
 			events: []EventBlob{
-				{ID: "id1", JSON: `{"test":1}`},
-				{ID: "id2", JSON: `{"test":2}`},
-				{ID: "id3", JSON: `{"test":3}`},
+				{ID: []byte("id1"), JSON: []byte(`{"test":1}`)},
+				{ID: []byte("id2"), JSON: []byte(`{"test":2}`)},
+				{ID: []byte("id3"), JSON: []byte(`{"test":3}`)},
 			},
 			verifyID:     "id2",
 			expectedJSON: `{"test":2}`,
@@ -139,8 +139,8 @@ func TestBatchWriteEvents(t *testing.T) {
 		{
 			name: "duplicate id overwrites",
 			events: []EventBlob{
-				{ID: "id1", JSON: `{"test":1}`},
-				{ID: "id1", JSON: `{"test":2}`},
+				{ID: []byte("id1"), JSON: []byte(`{"test":1}`)},
+				{ID: []byte("id1"), JSON: []byte(`{"test":2}`)},
 			},
 			verifyID:     "id1",
 			expectedJSON: `{"test":2}`,
@@ -177,9 +177,9 @@ func TestWriteThenCheck(t *testing.T) {
 	require.NoError(t, err)
 
 	events := []EventBlob{
-		{ID: "id1", JSON: `{"test":1}`},
-		{ID: "id2", JSON: `{"test":2}`},
-		{ID: "id3", JSON: `{"test":3}`},
+		{ID: []byte("id1"), JSON: []byte(`{"test":1}`)},
+		{ID: []byte("id2"), JSON: []byte(`{"test":2}`)},
+		{ID: []byte("id3"), JSON: []byte(`{"test":3}`)},
 	}
 
 	err = BatchWriteEvents(db, events)

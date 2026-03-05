@@ -1,7 +1,6 @@
 package heartwood
 
 import (
-	"fmt"
 	roots "git.wisehodl.dev/jay/go-roots/events"
 	"github.com/stretchr/testify/assert"
 	"sync"
@@ -10,12 +9,16 @@ import (
 
 // Test helpers
 
-func validEventJSON(id, pubkey string) string {
-	return fmt.Sprintf(`{"id":"%s","pubkey":"%s","created_at":1000,"kind":1,"content":"test","tags":[],"sig":"abc"}`, id, pubkey)
+func validEventJSON() []byte {
+	return []byte(`{"id":"c7a702e6158744ca03508bbb4c90f9dbb0d6e88fefbfaa511d5ab24b4e3c48ad","pubkey":"cfa87f35acbde29ba1ab3ee42de527b2cad33ac487e80cf2d6405ea0042c8fef","created_at":1760740551,"kind":1,"tags":[],"content":"hello world","sig":"83b71e15649c9e9da362c175f988c36404cabf357a976d869102a74451cfb8af486f6088b5631033b4927bd46cad7a0d90d7f624aefc0ac260364aa65c36071a"}`)
 }
 
-func invalidEventJSON() string {
-	return `{invalid json`
+func invalidEventJSON() []byte {
+	return []byte(`{"id":"abc123","pubkey":"xyz789","created_at":1000,"kind":1,"content":"test","tags":[],"sig":"abc"}`)
+}
+
+func malformedEventJSON() []byte {
+	return []byte(`{malformed json`)
 }
 
 // Pipeline stage tests
@@ -23,28 +26,28 @@ func invalidEventJSON() string {
 func TestCreateEventTravellers(t *testing.T) {
 	cases := []struct {
 		name     string
-		input    []string
+		input    [][]byte
 		expected []EventTraveller
 	}{
 		{
 			name:     "empty input",
-			input:    []string{},
+			input:    [][]byte{},
 			expected: []EventTraveller{},
 		},
 		{
 			name:  "single json",
-			input: []string{"test1"},
+			input: [][]byte{[]byte("test1")},
 			expected: []EventTraveller{
-				{JSON: "test1"},
+				{JSON: []byte("test1")},
 			},
 		},
 		{
 			name:  "multiple jsons",
-			input: []string{"test1", "test2", "test3"},
+			input: [][]byte{[]byte("test1"), []byte("test2"), []byte("test3")},
 			expected: []EventTraveller{
-				{JSON: "test1"},
-				{JSON: "test2"},
-				{JSON: "test3"},
+				{JSON: []byte("test1")},
+				{JSON: []byte("test2")},
+				{JSON: []byte("test3")},
 			},
 		},
 	}
@@ -52,7 +55,7 @@ func TestCreateEventTravellers(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var wg sync.WaitGroup
-			jsonChan := make(chan string)
+			jsonChan := make(chan []byte)
 			eventChan := make(chan EventTraveller)
 
 			wg.Add(1)
@@ -86,37 +89,48 @@ func TestParseEventJSON(t *testing.T) {
 		name          string
 		input         []EventTraveller
 		wantParsed    int
-		wantInvalid   int
+		wantRejected  int
 		checkParsedID bool
 		expectedID    string
+		wantErrorText string
 	}{
 		{
 			name: "valid event",
 			input: []EventTraveller{
-				{JSON: validEventJSON("abc123", "pubkey1")},
+				{JSON: validEventJSON()},
 			},
 			wantParsed:    1,
-			wantInvalid:   0,
+			wantRejected:  0,
 			checkParsedID: true,
-			expectedID:    "abc123",
+			expectedID:    "c7a702e6158744ca03508bbb4c90f9dbb0d6e88fefbfaa511d5ab24b4e3c48ad",
 		},
 		{
-			name: "invalid json",
+			name: "invalid event",
 			input: []EventTraveller{
 				{JSON: invalidEventJSON()},
 			},
-			wantParsed:  0,
-			wantInvalid: 1,
+			wantParsed:    0,
+			wantRejected:  1,
+			wantErrorText: "rejected: invalid event",
+		},
+		{
+			name: "malformed json",
+			input: []EventTraveller{
+				{JSON: malformedEventJSON()},
+			},
+			wantParsed:    0,
+			wantRejected:  1,
+			wantErrorText: "rejected: unrecognized event format",
 		},
 		{
 			name: "mixed batch",
 			input: []EventTraveller{
-				{JSON: validEventJSON("abc123", "pubkey1")},
 				{JSON: invalidEventJSON()},
-				{JSON: validEventJSON("def456", "pubkey2")},
+				{JSON: malformedEventJSON()},
+				{JSON: validEventJSON()},
 			},
-			wantParsed:  2,
-			wantInvalid: 1,
+			wantParsed:   1,
+			wantRejected: 2,
 		},
 	}
 
@@ -125,10 +139,10 @@ func TestParseEventJSON(t *testing.T) {
 			var wg sync.WaitGroup
 			inChan := make(chan EventTraveller)
 			parsedChan := make(chan EventTraveller)
-			invalidChan := make(chan EventTraveller)
+			rejectedChan := make(chan EventTraveller)
 
 			wg.Add(1)
-			go parseEventJSON(&wg, inChan, parsedChan, invalidChan)
+			go parseEventJSON(&wg, inChan, parsedChan, rejectedChan)
 
 			go func() {
 				for _, traveller := range tc.input {
@@ -138,7 +152,7 @@ func TestParseEventJSON(t *testing.T) {
 			}()
 
 			var parsed []EventTraveller
-			var invalid []EventTraveller
+			var rejected []EventTraveller
 			var collectWg sync.WaitGroup
 
 			collectWg.Add(2)
@@ -152,8 +166,8 @@ func TestParseEventJSON(t *testing.T) {
 
 			go func() {
 				defer collectWg.Done()
-				for f := range invalidChan {
-					invalid = append(invalid, f)
+				for f := range rejectedChan {
+					rejected = append(rejected, f)
 				}
 			}()
 
@@ -161,7 +175,7 @@ func TestParseEventJSON(t *testing.T) {
 			wg.Wait()
 
 			assert.Equal(t, tc.wantParsed, len(parsed))
-			assert.Equal(t, tc.wantInvalid, len(invalid))
+			assert.Equal(t, tc.wantRejected, len(rejected))
 
 			// Smoke test first parsed id
 			if tc.checkParsedID && len(parsed) > 0 {
@@ -169,9 +183,14 @@ func TestParseEventJSON(t *testing.T) {
 				assert.NotEmpty(t, parsed[0].Event.ID)
 			}
 
-			for _, inv := range invalid {
-				assert.NotNil(t, inv.Error)
-				assert.Empty(t, inv.Event.ID)
+			// Check error text on first rejected event
+			if tc.wantErrorText != "" {
+				assert.ErrorContains(t, rejected[0].Error, tc.wantErrorText)
+			}
+
+			for _, reject := range rejected {
+				assert.NotNil(t, reject.Error)
+				assert.Empty(t, reject.Event.ID)
 			}
 		})
 	}

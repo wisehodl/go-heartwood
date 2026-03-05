@@ -18,7 +18,7 @@ type WriteOptions struct {
 
 type EventTraveller struct {
 	ID       string
-	JSON     string
+	JSON     []byte
 	Event    roots.Event
 	Subgraph *EventSubgraph
 	Error    error
@@ -30,8 +30,7 @@ type WriteResult struct {
 }
 
 type WriteReport struct {
-	InvalidEvents        []EventTraveller
-	SkippedEvents        []EventTraveller
+	ExcludedEvents       []EventTraveller
 	CreatedEventCount    int
 	Neo4jResultSummaries []neo4j.ResultSummary
 	Duration             time.Duration
@@ -39,7 +38,7 @@ type WriteReport struct {
 }
 
 func WriteEvents(
-	events []string,
+	events [][]byte,
 	driver neo4j.Driver, boltdb *bolt.DB,
 	opts *WriteOptions,
 ) (WriteReport, error) {
@@ -59,7 +58,7 @@ func WriteEvents(
 	var wg sync.WaitGroup
 
 	// Create Event Travellers
-	jsonChan := make(chan string)
+	jsonChan := make(chan []byte)
 	eventChan := make(chan EventTraveller)
 
 	wg.Add(1)
@@ -67,30 +66,30 @@ func WriteEvents(
 
 	// Parse Event JSON
 	parsedChan := make(chan EventTraveller)
-	invalidChan := make(chan EventTraveller)
+	parseExcludedChan := make(chan EventTraveller)
 
 	wg.Add(1)
-	go parseEventJSON(&wg, eventChan, parsedChan, invalidChan)
+	go parseEventJSON(&wg, eventChan, parsedChan, parseExcludedChan)
 
-	// Collect Invalid Events
-	collectedInvalidChan := make(chan []EventTraveller)
+	// Collect Rejected Events
+	collectedParseExcludedChan := make(chan []EventTraveller)
 
 	wg.Add(1)
-	go collectTravellers(&wg, invalidChan, collectedInvalidChan)
+	go collectTravellers(&wg, parseExcludedChan, collectedParseExcludedChan)
 
 	// Enforce Policy Rules
 	queuedChan := make(chan EventTraveller)
-	skippedChan := make(chan EventTraveller)
+	policyExcludedChan := make(chan EventTraveller)
 
 	wg.Add(1)
 	go enforcePolicyRules(&wg, driver, boltdb, opts.BoltReadBatchSize,
-		parsedChan, queuedChan, skippedChan)
+		parsedChan, queuedChan, policyExcludedChan)
 
 	// Collect Skipped Events
-	collectedSkippedChan := make(chan []EventTraveller)
+	collectedPolicyExcludedChan := make(chan []EventTraveller)
 
 	wg.Add(1)
-	go collectTravellers(&wg, skippedChan, collectedSkippedChan)
+	go collectTravellers(&wg, policyExcludedChan, collectedPolicyExcludedChan)
 
 	// Convert Events To Subgraphs
 	convertedChan := make(chan EventTraveller)
@@ -116,14 +115,15 @@ func WriteEvents(
 	wg.Wait()
 
 	// Collect results
-	invalid := <-collectedInvalidChan
-	skipped := <-collectedSkippedChan
+	parseExcluded := <-collectedParseExcludedChan
+	policyExcluded := <-collectedPolicyExcludedChan
 	writeResult := <-writeResultChan
 
+	excluded := append(parseExcluded, policyExcluded...)
+
 	return WriteReport{
-		InvalidEvents:        invalid,
-		SkippedEvents:        skipped,
-		CreatedEventCount:    len(events) - len(invalid) - len(skipped),
+		ExcludedEvents:       excluded,
+		CreatedEventCount:    len(events) - len(excluded),
 		Neo4jResultSummaries: writeResult.ResultSummaries,
 		Duration:             time.Since(start),
 		Error:                writeResult.Error,
@@ -139,7 +139,7 @@ func setDefaultWriteOptions(opts *WriteOptions) {
 	}
 }
 
-func createEventTravellers(wg *sync.WaitGroup, jsonChan chan string, eventChan chan EventTraveller) {
+func createEventTravellers(wg *sync.WaitGroup, jsonChan chan []byte, eventChan chan EventTraveller) {
 	defer wg.Done()
 	for json := range jsonChan {
 		eventChan <- EventTraveller{JSON: json}
@@ -147,15 +147,22 @@ func createEventTravellers(wg *sync.WaitGroup, jsonChan chan string, eventChan c
 	close(eventChan)
 }
 
-func parseEventJSON(wg *sync.WaitGroup, inChan, parsedChan, invalidChan chan EventTraveller) {
+func parseEventJSON(wg *sync.WaitGroup, inChan, parsedChan, excludedChan chan EventTraveller) {
 	defer wg.Done()
 	for traveller := range inChan {
 		var event roots.Event
-		jsonBytes := []byte(traveller.JSON)
+		jsonBytes := traveller.JSON
 		err := json.Unmarshal(jsonBytes, &event)
 		if err != nil {
-			traveller.Error = err
-			invalidChan <- traveller
+			traveller.Error = fmt.Errorf("rejected: unrecognized event format: %w", err)
+			excludedChan <- traveller
+			continue
+		}
+
+		err = roots.Validate(event)
+		if err != nil {
+			traveller.Error = fmt.Errorf("rejected: invalid event: %w", err)
+			excludedChan <- traveller
 			continue
 		}
 
@@ -165,14 +172,14 @@ func parseEventJSON(wg *sync.WaitGroup, inChan, parsedChan, invalidChan chan Eve
 	}
 
 	close(parsedChan)
-	close(invalidChan)
+	close(excludedChan)
 }
 
 func enforcePolicyRules(
 	wg *sync.WaitGroup,
 	driver neo4j.Driver, boltdb *bolt.DB,
 	batchSize int,
-	inChan, queuedChan, skippedChan chan EventTraveller,
+	inChan, queuedChan, excludedChan chan EventTraveller,
 ) {
 	defer wg.Done()
 	var batch []EventTraveller
@@ -181,17 +188,17 @@ func enforcePolicyRules(
 		batch = append(batch, traveller)
 
 		if len(batch) >= batchSize {
-			processPolicyRulesBatch(boltdb, batch, queuedChan, skippedChan)
+			processPolicyRulesBatch(boltdb, batch, queuedChan, excludedChan)
 			batch = []EventTraveller{}
 		}
 	}
 
 	if len(batch) > 0 {
-		processPolicyRulesBatch(boltdb, batch, queuedChan, skippedChan)
+		processPolicyRulesBatch(boltdb, batch, queuedChan, excludedChan)
 	}
 
 	close(queuedChan)
-	close(skippedChan)
+	close(excludedChan)
 }
 
 func processPolicyRulesBatch(
@@ -209,6 +216,7 @@ func processPolicyRulesBatch(
 
 	for _, traveller := range batch {
 		if existsMap[traveller.ID] {
+			traveller.Error = fmt.Errorf("skipped: event already exists")
 			skippedChan <- traveller
 		} else {
 			queuedChan <- traveller
@@ -273,7 +281,7 @@ func writeEventsToBoltDB(
 
 	for traveller := range inChan {
 		events = append(events,
-			EventBlob{ID: traveller.ID, JSON: traveller.JSON})
+			EventBlob{ID: []byte(traveller.ID), JSON: traveller.JSON})
 	}
 
 	err := BatchWriteEvents(boltdb, events)

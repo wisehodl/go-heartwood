@@ -7,8 +7,8 @@ import (
 const BucketName string = "events"
 
 type EventBlob struct {
-	ID   string
-	JSON string
+	ID   []byte
+	JSON []byte
 }
 
 func SetupBoltDB(boltdb *bolt.DB) error {
@@ -39,9 +39,7 @@ func BatchWriteEvents(boltdb *bolt.DB, events []EventBlob) error {
 	return boltdb.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte(BucketName))
 		for _, event := range events {
-			if err := bucket.Put(
-				[]byte(event.ID), []byte(event.JSON),
-			); err != nil {
+			if err := bucket.Put(event.ID, event.JSON); err != nil {
 				return err
 			}
 		}
