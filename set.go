@@ -1,14 +1,20 @@
 package heartwood
 
+import (
+	"sort"
+)
+
 // Sets
 
-type Set[T comparable] struct {
-	inner map[T]struct{}
+type StringSet struct {
+	inner  map[string]struct{}
+	sorted []string
 }
 
-func NewSet[T comparable](items ...T) Set[T] {
-	set := Set[T]{
-		inner: make(map[T]struct{}),
+func NewStringSet(items ...string) *StringSet {
+	set := &StringSet{
+		inner:  make(map[string]struct{}),
+		sorted: []string{},
 	}
 	for _, i := range items {
 		set.Add(i)
@@ -16,20 +22,26 @@ func NewSet[T comparable](items ...T) Set[T] {
 	return set
 }
 
-func (s Set[T]) Add(item T) {
-	s.inner[item] = struct{}{}
+func (s *StringSet) Add(item string) {
+	if _, exists := s.inner[item]; !exists {
+		s.inner[item] = struct{}{}
+		s.rebuildSorted()
+	}
 }
 
-func (s Set[T]) Remove(item T) {
-	delete(s.inner, item)
+func (s *StringSet) Remove(item string) {
+	if _, exists := s.inner[item]; exists {
+		delete(s.inner, item)
+		s.rebuildSorted()
+	}
 }
 
-func (s Set[T]) Contains(item T) bool {
+func (s *StringSet) Contains(item string) bool {
 	_, exists := s.inner[item]
 	return exists
 }
 
-func (s Set[T]) Equal(other Set[T]) bool {
+func (s *StringSet) Equal(other StringSet) bool {
 	if len(s.inner) != len(other.inner) {
 		return false
 	}
@@ -41,14 +53,18 @@ func (s Set[T]) Equal(other Set[T]) bool {
 	return true
 }
 
-func (s Set[T]) Length() int {
+func (s *StringSet) Length() int {
 	return len(s.inner)
 }
 
-func (s Set[T]) ToArray() []T {
-	array := []T{}
-	for i := range s.inner {
-		array = append(array, i)
+func (s *StringSet) AsSortedArray() []string {
+	return s.sorted
+}
+
+func (s *StringSet) rebuildSorted() {
+	s.sorted = make([]string, 0, len(s.inner))
+	for item := range s.inner {
+		s.sorted = append(s.sorted, item)
 	}
-	return array
+	sort.Strings(s.sorted)
 }

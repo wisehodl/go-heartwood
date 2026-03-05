@@ -37,8 +37,8 @@ func TestNewRelationshipWithValidation(t *testing.T) {
 			}
 			rel := NewSignedRel(tc.start, tc.end, nil)
 			assert.Equal(t, "SIGNED", rel.Type)
-			assert.Contains(t, rel.Start.Labels.ToArray(), "User")
-			assert.Contains(t, rel.End.Labels.ToArray(), "Event")
+			assert.Contains(t, rel.Start.Labels.AsSortedArray(), "User")
+			assert.Contains(t, rel.End.Labels.AsSortedArray(), "Event")
 		})
 	}
 }

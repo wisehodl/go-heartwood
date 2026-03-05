@@ -71,7 +71,7 @@ func TestMatchProps(t *testing.T) {
 		{
 			name: "multiple labels, one matches",
 			node: &Node{
-				Labels: NewSet("Event", "Unknown"),
+				Labels: NewStringSet("Event", "Unknown"),
 				Props: Properties{
 					"id": "abc123",
 				},

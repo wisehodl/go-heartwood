@@ -4,32 +4,11 @@ import (
 	"github.com/boltdb/bolt"
 )
 
-// Interface
+const BucketName string = "events"
 
-type BoltDB interface {
-	Setup() error
-	BatchCheckEventsExist(eventIDs []string) map[string]bool
-	BatchWriteEvents(events []EventBlob) error
-}
-
-func NewKVDB(boltdb *bolt.DB) BoltDB {
-	return &boltDB{db: boltdb}
-}
-
-type boltDB struct {
-	db *bolt.DB
-}
-
-func (b *boltDB) Setup() error {
-	return SetupBoltDB(b.db)
-}
-
-func (b *boltDB) BatchCheckEventsExist(eventIDs []string) map[string]bool {
-	return BatchCheckEventsExist(b.db, eventIDs)
-}
-
-func (b *boltDB) BatchWriteEvents(events []EventBlob) error {
-	return BatchWriteEvents(b.db, events)
+type EventBlob struct {
+	ID   string
+	JSON string
 }
 
 func SetupBoltDB(boltdb *bolt.DB) error {
@@ -39,19 +18,10 @@ func SetupBoltDB(boltdb *bolt.DB) error {
 	})
 }
 
-// Functions
-
-const BucketName string = "events"
-
-type EventBlob struct {
-	ID   string
-	JSON string
-}
-
 func BatchCheckEventsExist(boltdb *bolt.DB, eventIDs []string) map[string]bool {
 	existsMap := make(map[string]bool)
 
-	boltdb.View(func(tx *bolt.Tx) error {
+	_ = boltdb.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte(BucketName))
 		if bucket == nil {
 			return nil

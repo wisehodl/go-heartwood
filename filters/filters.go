@@ -252,7 +252,7 @@ func UnmarshalGraphJSON(data []byte, f *GraphFilter) error {
 }
 
 func marshalGraphArray(filters []GraphFilter) ([]json.RawMessage, error) {
-	result := []json.RawMessage{}
+	result := make([]json.RawMessage, 0, len(filters))
 	for _, f := range filters {
 		b, err := MarshalGraphJSON(f)
 		if err != nil {
@@ -268,7 +268,7 @@ func unmarshalGraphArray(raws json.RawMessage) ([]GraphFilter, error) {
 	if err := json.Unmarshal(raws, &rawArray); err != nil {
 		return nil, err
 	}
-	var result []GraphFilter
+	result := make([]GraphFilter, 0, len(rawArray))
 	for _, raw := range rawArray {
 		var f GraphFilter
 		if err := UnmarshalGraphJSON(raw, &f); err != nil {

@@ -2,7 +2,6 @@ package heartwood
 
 import (
 	"fmt"
-	"sort"
 )
 
 // ========================================
@@ -33,7 +32,7 @@ type SimpleMatchKeys struct {
 }
 
 func (p *SimpleMatchKeys) GetLabels() []string {
-	labels := []string{}
+	labels := make([]string, 0, len(p.Keys))
 	for l := range p.Keys {
 		labels = append(labels, l)
 	}
@@ -43,9 +42,8 @@ func (p *SimpleMatchKeys) GetLabels() []string {
 func (p *SimpleMatchKeys) GetKeys(label string) ([]string, bool) {
 	if keys, exists := p.Keys[label]; exists {
 		return keys, exists
-	} else {
-		return nil, exists
 	}
+	return nil, false
 }
 
 // ========================================
@@ -56,7 +54,7 @@ func (p *SimpleMatchKeys) GetKeys(label string) ([]string, bool) {
 // properties.
 type Node struct {
 	// Set of labels on the node.
-	Labels Set[string]
+	Labels *StringSet
 	// Mapping of properties on the node.
 	Props Properties
 }
@@ -67,7 +65,7 @@ func NewNode(label string, props Properties) *Node {
 		props = make(Properties)
 	}
 	return &Node{
-		Labels: NewSet(label),
+		Labels: NewStringSet(label),
 		Props:  props,
 	}
 }
@@ -79,8 +77,7 @@ func (n *Node) MatchProps(
 
 	// Iterate over each label on the node, checking whether each has match
 	// keys associated with it.
-	labels := n.Labels.ToArray()
-	sort.Strings(labels)
+	labels := n.Labels.AsSortedArray()
 	for _, label := range labels {
 		if keys, exists := matchProvider.GetKeys(label); exists {
 			props := make(Properties)

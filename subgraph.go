@@ -4,7 +4,7 @@ import (
 	roots "git.wisehodl.dev/jay/go-roots/events"
 )
 
-// Event subgraph struct
+// Types
 
 type EventSubgraph struct {
 	nodes []*Node
@@ -35,7 +35,7 @@ func (s *EventSubgraph) Rels() []*Relationship {
 }
 
 func (s *EventSubgraph) NodesByLabel(label string) []*Node {
-	nodes := []*Node{}
+	var nodes []*Node
 	for _, node := range s.nodes {
 		if node.Labels.Contains(label) {
 			nodes = append(nodes, node)
@@ -58,7 +58,7 @@ func isValidTag(t roots.Tag) bool {
 	return true
 }
 
-// Event to subgraph conversion
+// Event to subgraph pipeline
 
 func EventToSubgraph(e roots.Event, p ExpanderPipeline) *EventSubgraph {
 	s := NewEventSubgraph()
@@ -89,6 +89,8 @@ func EventToSubgraph(e roots.Event, p ExpanderPipeline) *EventSubgraph {
 	return s
 }
 
+// Core pipeline functions
+
 func newEventNode(eventID string, createdAt int, kind int, content string) *Node {
 	eventNode := NewEventNode(eventID)
 	eventNode.Props["created_at"] = createdAt
@@ -106,7 +108,7 @@ func newSignedRel(user, event *Node) *Relationship {
 }
 
 func newTagNodes(tags []roots.Tag) []*Node {
-	nodes := []*Node{}
+	nodes := make([]*Node, 0, len(tags))
 	for _, tag := range tags {
 		if !isValidTag(tag) {
 			continue
@@ -117,9 +119,84 @@ func newTagNodes(tags []roots.Tag) []*Node {
 }
 
 func newTagRels(event *Node, tags []*Node) []*Relationship {
-	rels := []*Relationship{}
+	rels := make([]*Relationship, 0, len(tags))
 	for _, tag := range tags {
 		rels = append(rels, NewTaggedRel(event, tag, nil))
 	}
 	return rels
+}
+
+// Expander Pipeline
+
+type Expander func(e roots.Event, s *EventSubgraph)
+type ExpanderPipeline []Expander
+
+func NewExpanderPipeline(expanders ...Expander) ExpanderPipeline {
+	return ExpanderPipeline(expanders)
+}
+
+func DefaultExpanders() []Expander {
+	return []Expander{
+		ExpandTaggedEvents,
+		ExpandTaggedUsers,
+	}
+}
+
+func ExpandTaggedEvents(e roots.Event, s *EventSubgraph) {
+	tagNodes := s.NodesByLabel("Tag")
+	for _, tag := range e.Tags {
+		if !isValidTag(tag) {
+			continue
+		}
+		name := tag[0]
+		value := tag[1]
+
+		if name != "e" || !roots.Hex64Pattern.MatchString(value) {
+			continue
+		}
+
+		tagNode := findTagNode(tagNodes, name, value)
+		if tagNode == nil {
+			continue
+		}
+
+		referencedEvent := NewEventNode(value)
+
+		s.AddNode(referencedEvent)
+		s.AddRel(NewReferencesEventRel(tagNode, referencedEvent, nil))
+	}
+}
+
+func ExpandTaggedUsers(e roots.Event, s *EventSubgraph) {
+	tagNodes := s.NodesByLabel("Tag")
+	for _, tag := range e.Tags {
+		if !isValidTag(tag) {
+			continue
+		}
+		name := tag[0]
+		value := tag[1]
+
+		if name != "p" || !roots.Hex64Pattern.MatchString(value) {
+			continue
+		}
+
+		tagNode := findTagNode(tagNodes, name, value)
+		if tagNode == nil {
+			continue
+		}
+
+		referencedEvent := NewUserNode(value)
+
+		s.AddNode(referencedEvent)
+		s.AddRel(NewReferencesUserRel(tagNode, referencedEvent, nil))
+	}
+}
+
+func findTagNode(nodes []*Node, name, value string) *Node {
+	for _, node := range nodes {
+		if node.Props["name"] == name && node.Props["value"] == value {
+			return node
+		}
+	}
+	return nil
 }

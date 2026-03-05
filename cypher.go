@@ -30,7 +30,8 @@ func ToCypherProps(keys []string, prefix string) string {
 	if prefix == "" {
 		prefix = "$"
 	}
-	cypherPropsParts := []string{}
+
+	var cypherPropsParts []string
 	for _, key := range keys {
 		cypherPropsParts = append(
 			cypherPropsParts, fmt.Sprintf("%s: %s%s", key, prefix, key))

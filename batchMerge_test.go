@@ -7,20 +7,19 @@ import (
 
 func TestNodeBatchKey(t *testing.T) {
 	matchLabel := "Event"
-	labels := []string{"Event", "AddressableEvent"}
-
-	// labels should be batched by key generator
+	sortedLabels := []string{"AddressableEvent", "Event"}
 	expectedKey := "Event:AddressableEvent,Event"
 
 	// Test Serialization
-	batchKey := createNodeBatchKey(matchLabel, labels)
+	// labels are expected to be pre-sorted
+	batchKey := createNodeBatchKey(matchLabel, sortedLabels)
 	assert.Equal(t, expectedKey, batchKey)
 
 	// Test Deserialization
 	returnedMatchLabel, returnedLabels, err := deserializeNodeBatchKey(batchKey)
 	assert.NoError(t, err)
 	assert.Equal(t, matchLabel, returnedMatchLabel)
-	assert.ElementsMatch(t, labels, returnedLabels)
+	assert.ElementsMatch(t, sortedLabels, returnedLabels)
 }
 
 func TestRelBatchKey(t *testing.T) {

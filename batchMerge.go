@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/neo4j/neo4j-go-driver/v6/neo4j"
-	"sort"
 	"strings"
 )
 
@@ -45,15 +44,11 @@ func (s *BatchSubgraph) AddNode(node *Node) error {
 	// Verify that the node has defined match property values.
 	matchLabel, _, err := node.MatchProps(s.matchProvider)
 	if err != nil {
-		return fmt.Errorf("invalid node: %s", err)
+		return fmt.Errorf("invalid node: %w", err)
 	}
 
 	// Determine the node's batch key.
-	batchKey := createNodeBatchKey(matchLabel, node.Labels.ToArray())
-
-	if _, exists := s.nodes[batchKey]; !exists {
-		s.nodes[batchKey] = []*Node{}
-	}
+	batchKey := createNodeBatchKey(matchLabel, node.Labels.AsSortedArray())
 
 	// Add the node to the sub
 	s.nodes[batchKey] = append(s.nodes[batchKey], node)
@@ -66,21 +61,17 @@ func (s *BatchSubgraph) AddRel(rel *Relationship) error {
 	// Verify that the start node has defined match property values.
 	startLabel, _, err := rel.Start.MatchProps(s.matchProvider)
 	if err != nil {
-		return fmt.Errorf("invalid start node: %s", err)
+		return fmt.Errorf("invalid start node: %w", err)
 	}
 
 	// Verify that the end node has defined match property values.
 	endLabel, _, err := rel.End.MatchProps(s.matchProvider)
 	if err != nil {
-		return fmt.Errorf("invalid end node: %s", err)
+		return fmt.Errorf("invalid end node: %w", err)
 	}
 
 	// Determine the relationship's batch key.
 	batchKey := createRelBatchKey(rel.Type, startLabel, endLabel)
-
-	if _, exists := s.rels[batchKey]; !exists {
-		s.rels[batchKey] = []*Relationship{}
-	}
 
 	// Add the relationship to the sub
 	s.rels[batchKey] = append(s.rels[batchKey], rel)
@@ -105,7 +96,7 @@ func (s *BatchSubgraph) RelCount() int {
 }
 
 func (s *BatchSubgraph) nodeKeys() []string {
-	keys := []string{}
+	keys := make([]string, 0, len(s.nodes))
 	for l := range s.nodes {
 		keys = append(keys, l)
 	}
@@ -113,7 +104,7 @@ func (s *BatchSubgraph) nodeKeys() []string {
 }
 
 func (s *BatchSubgraph) relKeys() []string {
-	keys := []string{}
+	keys := make([]string, 0, len(s.rels))
 	for t := range s.rels {
 		keys = append(keys, t)
 	}
@@ -121,7 +112,7 @@ func (s *BatchSubgraph) relKeys() []string {
 }
 
 func (s *BatchSubgraph) NodeBatches() ([]NodeBatch, error) {
-	batches := []NodeBatch{}
+	batches := make([]NodeBatch, 0, len(s.nodeKeys()))
 
 	for _, nodeKey := range s.nodeKeys() {
 		matchLabel, labels, err := deserializeNodeBatchKey(nodeKey)
@@ -146,7 +137,7 @@ func (s *BatchSubgraph) NodeBatches() ([]NodeBatch, error) {
 }
 
 func (s *BatchSubgraph) RelBatches() ([]RelBatch, error) {
-	batches := []RelBatch{}
+	batches := make([]RelBatch, 0, len(s.relKeys()))
 
 	for _, relKey := range s.relKeys() {
 		rtype, startLabel, endLabel, err := deserializeRelBatchKey(relKey)
@@ -181,9 +172,8 @@ func (s *BatchSubgraph) RelBatches() ([]RelBatch, error) {
 
 // Helpers
 
-func createNodeBatchKey(matchLabel string, labels []string) string {
-	sort.Strings(labels)
-	serializedLabels := strings.Join(labels, ",")
+func createNodeBatchKey(matchLabel string, sortedLabels []string) string {
+	serializedLabels := strings.Join(sortedLabels, ",")
 	return fmt.Sprintf("%s:%s", matchLabel, serializedLabels)
 }
 
@@ -245,7 +235,7 @@ func MergeSubgraph(
 				)
 			}
 			if nodeResultSummary != nil {
-				resultSummaries = append(resultSummaries, *nodeResultSummary)
+				resultSummaries = append(resultSummaries, nodeResultSummary)
 			}
 		}
 
@@ -261,7 +251,7 @@ func MergeSubgraph(
 				)
 			}
 			if relResultSummary != nil {
-				resultSummaries = append(resultSummaries, *relResultSummary)
+				resultSummaries = append(resultSummaries, relResultSummary)
 			}
 		}
 
@@ -284,11 +274,11 @@ func MergeNodes(
 	ctx context.Context,
 	tx neo4j.ManagedTransaction,
 	batch NodeBatch,
-) (*neo4j.ResultSummary, error) {
+) (neo4j.ResultSummary, error) {
 	cypherLabels := ToCypherLabels(batch.Labels)
 	cypherProps := ToCypherProps(batch.MatchKeys, "node.")
 
-	serializedNodes := []*SerializedNode{}
+	serializedNodes := make([]*SerializedNode, 0, len(batch.Nodes))
 	for _, node := range batch.Nodes {
 		serializedNodes = append(serializedNodes, node.Serialize())
 	}
@@ -316,21 +306,21 @@ func MergeNodes(
 		return nil, err
 	}
 
-	return &summary, nil
+	return summary, nil
 }
 
 func MergeRels(
 	ctx context.Context,
 	tx neo4j.ManagedTransaction,
 	batch RelBatch,
-) (*neo4j.ResultSummary, error) {
+) (neo4j.ResultSummary, error) {
 	cypherType := ToCypherLabel(batch.Type)
 	startCypherLabel := ToCypherLabel(batch.StartLabel)
 	endCypherLabel := ToCypherLabel(batch.EndLabel)
 	startCypherProps := ToCypherProps(batch.StartMatchKeys, "rel.start.")
 	endCypherProps := ToCypherProps(batch.EndMatchKeys, "rel.end.")
 
-	serializedRels := []*SerializedRel{}
+	serializedRels := make([]*SerializedRel, 0, len(batch.Rels))
 	for _, rel := range batch.Rels {
 		serializedRels = append(serializedRels, rel.Serialize())
 	}
@@ -363,5 +353,5 @@ func MergeRels(
 		return nil, err
 	}
 
-	return &summary, nil
+	return summary, nil
 }

@@ -172,7 +172,7 @@ func nodesEqual(expected, got *Node) error {
 	}
 
 	// Compare label values
-	for _, label := range expected.Labels.ToArray() {
+	for _, label := range expected.Labels.AsSortedArray() {
 		if !got.Labels.Contains(label) {
 			return fmt.Errorf("missing label %q", label)
 		}
