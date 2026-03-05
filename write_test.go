@@ -20,28 +20,28 @@ func invalidEventJSON() string {
 
 // Pipeline stage tests
 
-func TestCreateEventFollowers(t *testing.T) {
+func TestCreateEventTravellers(t *testing.T) {
 	cases := []struct {
 		name     string
 		input    []string
-		expected []EventFollower
+		expected []EventTraveller
 	}{
 		{
 			name:     "empty input",
 			input:    []string{},
-			expected: []EventFollower{},
+			expected: []EventTraveller{},
 		},
 		{
 			name:  "single json",
 			input: []string{"test1"},
-			expected: []EventFollower{
+			expected: []EventTraveller{
 				{JSON: "test1"},
 			},
 		},
 		{
 			name:  "multiple jsons",
 			input: []string{"test1", "test2", "test3"},
-			expected: []EventFollower{
+			expected: []EventTraveller{
 				{JSON: "test1"},
 				{JSON: "test2"},
 				{JSON: "test3"},
@@ -53,10 +53,10 @@ func TestCreateEventFollowers(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var wg sync.WaitGroup
 			jsonChan := make(chan string)
-			eventChan := make(chan EventFollower)
+			eventChan := make(chan EventTraveller)
 
 			wg.Add(1)
-			go createEventFollowers(&wg, jsonChan, eventChan)
+			go createEventTravellers(&wg, jsonChan, eventChan)
 
 			go func() {
 				for _, raw := range tc.input {
@@ -65,9 +65,9 @@ func TestCreateEventFollowers(t *testing.T) {
 				close(jsonChan)
 			}()
 
-			var result []EventFollower
-			for follower := range eventChan {
-				result = append(result, follower)
+			var result []EventTraveller
+			for traveller := range eventChan {
+				result = append(result, traveller)
 			}
 
 			wg.Wait()
@@ -84,7 +84,7 @@ func TestCreateEventFollowers(t *testing.T) {
 func TestParseEventJSON(t *testing.T) {
 	cases := []struct {
 		name          string
-		input         []EventFollower
+		input         []EventTraveller
 		wantParsed    int
 		wantInvalid   int
 		checkParsedID bool
@@ -92,7 +92,7 @@ func TestParseEventJSON(t *testing.T) {
 	}{
 		{
 			name: "valid event",
-			input: []EventFollower{
+			input: []EventTraveller{
 				{JSON: validEventJSON("abc123", "pubkey1")},
 			},
 			wantParsed:    1,
@@ -102,7 +102,7 @@ func TestParseEventJSON(t *testing.T) {
 		},
 		{
 			name: "invalid json",
-			input: []EventFollower{
+			input: []EventTraveller{
 				{JSON: invalidEventJSON()},
 			},
 			wantParsed:  0,
@@ -110,7 +110,7 @@ func TestParseEventJSON(t *testing.T) {
 		},
 		{
 			name: "mixed batch",
-			input: []EventFollower{
+			input: []EventTraveller{
 				{JSON: validEventJSON("abc123", "pubkey1")},
 				{JSON: invalidEventJSON()},
 				{JSON: validEventJSON("def456", "pubkey2")},
@@ -123,22 +123,22 @@ func TestParseEventJSON(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var wg sync.WaitGroup
-			inChan := make(chan EventFollower)
-			parsedChan := make(chan EventFollower)
-			invalidChan := make(chan EventFollower)
+			inChan := make(chan EventTraveller)
+			parsedChan := make(chan EventTraveller)
+			invalidChan := make(chan EventTraveller)
 
 			wg.Add(1)
 			go parseEventJSON(&wg, inChan, parsedChan, invalidChan)
 
 			go func() {
-				for _, follower := range tc.input {
-					inChan <- follower
+				for _, traveller := range tc.input {
+					inChan <- traveller
 				}
 				close(inChan)
 			}()
 
-			var parsed []EventFollower
-			var invalid []EventFollower
+			var parsed []EventTraveller
+			var invalid []EventTraveller
 			var collectWg sync.WaitGroup
 
 			collectWg.Add(2)
@@ -204,8 +204,8 @@ func TestConvertEventsToSubgraphs(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var wg sync.WaitGroup
-			inChan := make(chan EventFollower)
-			convertedChan := make(chan EventFollower)
+			inChan := make(chan EventTraveller)
+			convertedChan := make(chan EventTraveller)
 
 			expanders := NewExpanderPipeline(DefaultExpanders()...)
 
@@ -213,11 +213,11 @@ func TestConvertEventsToSubgraphs(t *testing.T) {
 			go convertEventsToSubgraphs(&wg, expanders, inChan, convertedChan)
 
 			go func() {
-				inChan <- EventFollower{Event: tc.event}
+				inChan <- EventTraveller{Event: tc.event}
 				close(inChan)
 			}()
 
-			var result EventFollower
+			var result EventTraveller
 			for f := range convertedChan {
 				result = f
 			}
@@ -236,17 +236,17 @@ func TestConvertEventsToSubgraphs(t *testing.T) {
 func TestCollectEvents(t *testing.T) {
 	cases := []struct {
 		name     string
-		input    []EventFollower
+		input    []EventTraveller
 		expected int
 	}{
 		{
 			name:     "empty channel",
-			input:    []EventFollower{},
+			input:    []EventTraveller{},
 			expected: 0,
 		},
 		{
-			name: "multiple followers",
-			input: []EventFollower{
+			name: "multiple travellers",
+			input: []EventTraveller{
 				{ID: "id1"},
 				{ID: "id2"},
 				{ID: "id3"},
@@ -258,11 +258,11 @@ func TestCollectEvents(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var wg sync.WaitGroup
-			inChan := make(chan EventFollower)
-			resultChan := make(chan []EventFollower)
+			inChan := make(chan EventTraveller)
+			resultChan := make(chan []EventTraveller)
 
 			wg.Add(1)
-			go collectEvents(&wg, inChan, resultChan)
+			go collectTravellers(&wg, inChan, resultChan)
 
 			go func() {
 				for _, f := range tc.input {
