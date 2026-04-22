@@ -151,7 +151,7 @@ func ExpandTaggedEvents(e roots.Event, s *EventSubgraph) {
 		name := tag[0]
 		value := tag[1]
 
-		if name != "e" || !roots.Hex64Pattern.MatchString(value) {
+		if name != "e" || !isLowerHex(value, 64) {
 			continue
 		}
 
@@ -176,7 +176,7 @@ func ExpandTaggedUsers(e roots.Event, s *EventSubgraph) {
 		name := tag[0]
 		value := tag[1]
 
-		if name != "p" || !roots.Hex64Pattern.MatchString(value) {
+		if name != "p" || !isLowerHex(value, 64) {
 			continue
 		}
 
@@ -199,4 +199,17 @@ func findTagNode(nodes []*Node, name, value string) *Node {
 		}
 	}
 	return nil
+}
+
+func isLowerHex(s string, n int) bool {
+	if len(s) != n {
+		return false
+	}
+	for i := 0; i < n; i++ {
+		c := s[i]
+		if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
+			return false
+		}
+	}
+	return true
 }
