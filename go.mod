@@ -3,7 +3,7 @@ module git.wisehodl.dev/jay/go-heartwood
 go 1.24.0
 
 require (
-	git.wisehodl.dev/jay/go-roots v0.3.1
+	git.wisehodl.dev/jay/go-roots v0.4.1
 	github.com/boltdb/bolt v1.3.1
 	github.com/neo4j/neo4j-go-driver/v6 v6.0.0
 	github.com/stretchr/testify v1.11.1
