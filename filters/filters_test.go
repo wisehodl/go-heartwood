@@ -9,9 +9,7 @@ import (
 
 // Helpers
 
-func intPtr(i int) *int {
-	return &i
-}
+func intPtr(i int) *int { ptr := i; return &ptr }
 
 func expectEqualHeartwoodFilters(t *testing.T, got, want HeartwoodFilter) {
 	t.Helper()
@@ -61,11 +59,11 @@ func TestMarshalJSON(t *testing.T) {
 		{
 			name: "root fields only",
 			filter: HeartwoodFilter{
-				Root: roots.Filter{
-					IDs:   []string{"abc"},
-					Kinds: []int{1},
-					Since: intPtr(1000),
-				},
+				Root: roots.NewFilter(
+					roots.WithIDs([]string{"abc"}),
+					roots.WithKinds([]int{1}),
+					roots.WithSince(1000),
+				),
 			},
 			expected: `{"ids":["abc"],"kinds":[1],"since":1000}`,
 		},
@@ -88,9 +86,9 @@ func TestMarshalJSON(t *testing.T) {
 		{
 			name: "root and graph present",
 			filter: HeartwoodFilter{
-				Root: roots.Filter{
-					IDs: []string{"abc"},
-				},
+				Root: roots.NewFilter(
+					roots.WithIDs([]string{"abc"}),
+				),
 				Graph: []GraphFilter{
 					{Kinds: []json.RawMessage{json.RawMessage(`1`)}},
 				},
@@ -128,11 +126,11 @@ func TestUnmarshalJSON(t *testing.T) {
 			name:  "root fields only",
 			input: `{"ids":["abc"],"kinds":[1],"since":1000}`,
 			expected: HeartwoodFilter{
-				Root: roots.Filter{
-					IDs:   []string{"abc"},
-					Kinds: []int{1},
-					Since: intPtr(1000),
-				},
+				Root: roots.NewFilter(
+					roots.WithIDs([]string{"abc"}),
+					roots.WithKinds([]int{1}),
+					roots.WithSince(1000),
+				),
 			},
 		},
 		{
@@ -155,9 +153,9 @@ func TestUnmarshalJSON(t *testing.T) {
 			name:  "root and graph present",
 			input: `{"ids":["abc"],"graph":[{"kinds":[1]}]}`,
 			expected: HeartwoodFilter{
-				Root: roots.Filter{
-					IDs: []string{"abc"},
-				},
+				Root: roots.NewFilter(
+					roots.WithIDs([]string{"abc"}),
+				),
 				Graph: []GraphFilter{
 					{Kinds: []json.RawMessage{json.RawMessage(`1`)}},
 				},
@@ -167,12 +165,10 @@ func TestUnmarshalJSON(t *testing.T) {
 			name:  "graph is removed from root extensions",
 			input: `{"ids":["abc"],"graph":[{"kinds":[1]}],"search":"bitcoin"}`,
 			expected: HeartwoodFilter{
-				Root: roots.Filter{
-					IDs: []string{"abc"},
-					Extensions: map[string]json.RawMessage{
-						"search": json.RawMessage(`"bitcoin"`),
-					},
-				},
+				Root: roots.NewFilter(
+					roots.WithIDs([]string{"abc"}),
+					roots.WithExtension("search", json.RawMessage(`"bitcoin"`)),
+				),
 				Graph: []GraphFilter{
 					{Kinds: []json.RawMessage{json.RawMessage(`1`)}},
 				},

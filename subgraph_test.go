@@ -15,13 +15,13 @@ var ids = map[string]string{
 	"d": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
 }
 
-var static = roots.Event{
-	CreatedAt: 1000,
-	Kind:      1,
-	Content:   "hello",
-}
+var static = roots.NewEvent(
+	roots.WithCreatedAt(1000),
+	roots.WithKind(1),
+	roots.WithContent("hello"),
+)
 
-func newFullEventNode(id string, createdAt, kind int, content string) *Node {
+func newFullEventNode(id string, createdAt int64, kind int, content string) *Node {
 	n := NewEventNode(id)
 	n.Props["created_at"] = createdAt
 	n.Props["kind"] = kind

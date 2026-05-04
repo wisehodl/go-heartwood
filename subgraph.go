@@ -91,7 +91,7 @@ func EventToSubgraph(e roots.Event, p ExpanderPipeline) *EventSubgraph {
 
 // Core pipeline functions
 
-func newEventNode(eventID string, createdAt int, kind int, content string) *Node {
+func newEventNode(eventID string, createdAt int64, kind int, content string) *Node {
 	eventNode := NewEventNode(eventID)
 	eventNode.Props["created_at"] = createdAt
 	eventNode.Props["kind"] = kind
