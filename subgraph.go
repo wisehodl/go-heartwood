@@ -55,7 +55,7 @@ func (s *EventSubgraph) FirstNodesByLabel(label string) *Node {
 
 // Helpers
 
-func isValidTag(t roots.Tag) bool {
+func IsValidTag(t roots.Tag) bool {
 	if len(t) < 2 {
 		// Skip tags that do not have name and value fields
 		return false
@@ -119,7 +119,7 @@ func newSignedRel(user, event *Node) *Relationship {
 func newTagNodes(tags []roots.Tag) []*Node {
 	nodes := make([]*Node, 0, len(tags))
 	for _, tag := range tags {
-		if !isValidTag(tag) {
+		if !IsValidTag(tag) {
 			continue
 		}
 		nodes = append(nodes, NewTagNode(tag[0], tag[1]))
@@ -154,7 +154,7 @@ func DefaultExpanders() []Expander {
 func ExpandTaggedEvents(e roots.Event, s *EventSubgraph) {
 	tagNodes := s.NodesByLabel("Tag")
 	for _, tag := range e.Tags {
-		if !isValidTag(tag) {
+		if !IsValidTag(tag) {
 			continue
 		}
 		name := tag[0]
@@ -179,7 +179,7 @@ func ExpandTaggedEvents(e roots.Event, s *EventSubgraph) {
 func ExpandTaggedUsers(e roots.Event, s *EventSubgraph) {
 	tagNodes := s.NodesByLabel("Tag")
 	for _, tag := range e.Tags {
-		if !isValidTag(tag) {
+		if !IsValidTag(tag) {
 			continue
 		}
 		name := tag[0]
