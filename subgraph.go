@@ -44,7 +44,7 @@ func (s *EventSubgraph) NodesByLabel(label string) []*Node {
 	return nodes
 }
 
-func (s *EventSubgraph) FirstNodesByLabel(label string) *Node {
+func (s *EventSubgraph) FirstNodeByLabel(label string) *Node {
 	for _, node := range s.nodes {
 		if node.Labels.Contains(label) {
 			return node
@@ -148,6 +148,7 @@ func DefaultExpanders() []Expander {
 	return []Expander{
 		ExpandTaggedEvents,
 		ExpandTaggedUsers,
+		ExpandReplaceableEvents,
 	}
 }
 
@@ -185,4 +186,31 @@ func ExpandTaggedUsers(e roots.Event, s *EventSubgraph) {
 		s.AddNode(user)
 		s.AddRel(NewReferencesUserRel(tag, user, nil))
 	}
+}
+
+func ExpandReplaceableEvents(e roots.Event, s *EventSubgraph) {
+	if e.Kind != 0 && e.Kind != 3 && !(e.Kind >= 10000 && e.Kind < 20000) {
+		return
+	}
+
+	eventNode := s.FirstNodeByLabel("Event")
+	if eventNode == nil {
+		return
+	}
+
+	var authorNode *Node
+	for _, n := range s.NodesByLabel("User") {
+		if n.Props["pubkey"] == e.PubKey {
+			authorNode = n
+			break
+		}
+	}
+	if authorNode == nil {
+		return
+	}
+
+	rk := NewReplacementKeyNode(e.PubKey, e.Kind)
+	s.AddNode(rk)
+	s.AddRel(NewIsReplaceableRel(eventNode, rk, nil))
+	s.AddRel(NewForUserRel(rk, authorNode, nil))
 }
