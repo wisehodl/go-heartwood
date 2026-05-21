@@ -11,10 +11,11 @@ import (
 func NewSimpleMatchKeys() *SimpleMatchKeys {
 	return &SimpleMatchKeys{
 		Keys: map[string][]string{
-			"User":  {"pubkey"},
-			"Relay": {"url"},
-			"Event": {"id"},
-			"Tag":   {"name", "value"},
+			"User":           {"pubkey"},
+			"Relay":          {"url"},
+			"Event":          {"id"},
+			"Tag":            {"name", "value"},
+			"ReplacementKey": {"pubkey", "kind"},
 		},
 	}
 }
@@ -39,6 +40,13 @@ func NewTagNode(name string, value string) *Node {
 	return NewNode("Tag", Properties{
 		"name":  name,
 		"value": value})
+}
+
+func NewReplacementKeyNode(pubkey string, kind int) *Node {
+	return NewNode("ReplacementKey", Properties{
+		"pubkey": pubkey,
+		"kind":   kind,
+	})
 }
 
 // ========================================
@@ -68,6 +76,30 @@ func NewReferencesUserRel(
 	start *Node, end *Node, props Properties) *Relationship {
 	return NewRelationshipWithValidation(
 		"REFERENCES", "Tag", "User", start, end, props)
+}
+
+func NewIsReplaceableRel(
+	start *Node, end *Node, props Properties) *Relationship {
+	return NewRelationshipWithValidation(
+		"IS_REPLACEABLE", "Event", "ReplacementKey", start, end, props)
+}
+
+func NewForUserRel(
+	start *Node, end *Node, props Properties) *Relationship {
+	return NewRelationshipWithValidation(
+		"FOR_USER", "ReplacementKey", "User", start, end, props)
+}
+
+func NewWithDTagRel(
+	start *Node, end *Node, props Properties) *Relationship {
+	return NewRelationshipWithValidation(
+		"WITH_D_TAG", "ReplacementKey", "Tag", start, end, props)
+}
+
+func NewReferencesReplacementKeyRel(
+	start *Node, end *Node, props Properties) *Relationship {
+	return NewRelationshipWithValidation(
+		"REFERENCES", "Tag", "ReplacementKey", start, end, props)
 }
 
 // ========================================

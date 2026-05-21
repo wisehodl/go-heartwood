@@ -25,20 +25,37 @@ func ConnectNeo4j(ctx context.Context, uri, user, password string) (neo4j.Driver
 // the database
 func SetNeo4jSchema(ctx context.Context, driver neo4j.Driver) error {
 	schemaQueries := []string{
-		`CREATE CONSTRAINT user_pubkey IF NOT EXISTS
+		// Constraints
+
+		// User.pubkey
+		`CREATE CONSTRAINT user IF NOT EXISTS
 		 FOR (n:User) REQUIRE n.pubkey IS UNIQUE`,
 
-		`CREATE INDEX user_pubkey IF NOT EXISTS
-		 FOR (n:User) ON (n.pubkey)`,
+		// Relay.url
+		`CREATE CONSTRAINT url IF NOT EXISTS
+		 FOR (n:Relay) REQUIRE n.url IS UNIQUE`,
 
-		`CREATE INDEX event_id IF NOT EXISTS
-		 FOR (n:Event) ON (n.id)`,
+		// Event.id
+		`CREATE CONSTRAINT event IF NOT EXISTS
+		 FOR (n:Event) REQUIRE n.id IS UNIQUE`,
 
+		// Tag.(name, value)
+		`CREATE CONSTRAINT tag IF NOT EXISTS
+		 FOR (n:Tag) REQUIRE (n.name, n.value) IS UNIQUE`,
+
+		// ReplacementKey.(pubkey, kind)
+		`CREATE CONSTRAINT replacement_key IF NOT EXISTS
+		 FOR (n:ReplacementKey) REQUIRE (n.pubkey, n.kind) IS UNIQUE`,
+
+		// Indexes
+
+		// Event.kind
 		`CREATE INDEX event_kind IF NOT EXISTS
 		 FOR (n:Event) ON (n.kind)`,
 
-		`CREATE INDEX tag_name_value IF NOT EXISTS
-		 FOR (n:Tag) ON (n.name, n.value)`,
+		// Event.created_at
+		`CREATE INDEX event_created_at IF NOT EXISTS
+		 FOR (n:Event) ON (n.created_at)`,
 	}
 
 	// Create indexes and constraints
