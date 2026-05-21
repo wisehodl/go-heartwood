@@ -44,6 +44,15 @@ func (s *EventSubgraph) NodesByLabel(label string) []*Node {
 	return nodes
 }
 
+func (s *EventSubgraph) FirstNodesByLabel(label string) *Node {
+	for _, node := range s.nodes {
+		if node.Labels.Contains(label) {
+			return node
+		}
+	}
+	return nil
+}
+
 // Helpers
 
 func isValidTag(t roots.Tag) bool {
