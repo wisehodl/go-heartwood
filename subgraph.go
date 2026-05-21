@@ -164,7 +164,7 @@ func ExpandTaggedEvents(e roots.Event, s *EventSubgraph) {
 			continue
 		}
 
-		tagNode := findTagNode(tagNodes, name, value)
+		tagNode := FindTagNode(tagNodes, name, value)
 		if tagNode == nil {
 			continue
 		}
@@ -189,7 +189,7 @@ func ExpandTaggedUsers(e roots.Event, s *EventSubgraph) {
 			continue
 		}
 
-		tagNode := findTagNode(tagNodes, name, value)
+		tagNode := FindTagNode(tagNodes, name, value)
 		if tagNode == nil {
 			continue
 		}
@@ -201,7 +201,7 @@ func ExpandTaggedUsers(e roots.Event, s *EventSubgraph) {
 	}
 }
 
-func findTagNode(nodes []*Node, name, value string) *Node {
+func FindTagNode(nodes []*Node, name, value string) *Node {
 	for _, node := range nodes {
 		if node.Props["name"] == name && node.Props["value"] == value {
 			return node
