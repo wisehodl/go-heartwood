@@ -235,7 +235,9 @@ func convertEventsToSubgraphs(
 ) {
 	defer wg.Done()
 	for traveller := range inChan {
-		subgraph := EventToSubgraph(traveller.Event, expanders)
+		// temporary adapter — removed in Phase 5
+		validated, _ := roots.NewValidatedEvent(traveller.Event)
+		subgraph := EventToSubgraph(validated, expanders)
 		traveller.Subgraph = subgraph
 		convertedChan <- traveller
 	}

@@ -69,14 +69,14 @@ func IsValidTag(t roots.Tag) bool {
 
 // Event to subgraph pipeline
 
-func EventToSubgraph(e roots.Event, p ExpanderPipeline) *EventSubgraph {
+func EventToSubgraph(e roots.ValidatedEvent, p ExpanderPipeline) *EventSubgraph {
 	s := NewEventSubgraph()
 
 	// Create core entities
-	eventNode := newEventNode(e.ID, e.CreatedAt, e.Kind, e.Content)
-	userNode := newUserNode(e.PubKey)
+	eventNode := newEventNode(e.ID(), e.CreatedAt(), e.Kind(), e.Content())
+	userNode := newUserNode(e.PubKey())
 	signedRel := newSignedRel(userNode, eventNode)
-	tagNodes := newTagNodes(e.Tags)
+	tagNodes := newTagNodes(e.Tags())
 	tagRels := newTagRels(eventNode, tagNodes)
 
 	// Populate subgraph
@@ -137,7 +137,7 @@ func newTagRels(event *Node, tags []*Node) []*Relationship {
 
 // Expander Pipeline
 
-type Expander func(e roots.Event, s *EventSubgraph)
+type Expander func(e roots.ValidatedEvent, s *EventSubgraph)
 type ExpanderPipeline []Expander
 
 func NewExpanderPipeline(expanders ...Expander) ExpanderPipeline {
@@ -152,7 +152,7 @@ func DefaultExpanders() []Expander {
 	}
 }
 
-func ExpandTaggedEvents(e roots.Event, s *EventSubgraph) {
+func ExpandTaggedEvents(e roots.ValidatedEvent, s *EventSubgraph) {
 	for _, tag := range s.NodesByLabel("Tag") {
 		if tag.Props["name"] != "e" {
 			continue
@@ -170,7 +170,7 @@ func ExpandTaggedEvents(e roots.Event, s *EventSubgraph) {
 	}
 }
 
-func ExpandTaggedUsers(e roots.Event, s *EventSubgraph) {
+func ExpandTaggedUsers(e roots.ValidatedEvent, s *EventSubgraph) {
 	for _, tag := range s.NodesByLabel("Tag") {
 		if tag.Props["name"] != "p" {
 			continue
@@ -188,8 +188,8 @@ func ExpandTaggedUsers(e roots.Event, s *EventSubgraph) {
 	}
 }
 
-func ExpandReplaceableEvents(e roots.Event, s *EventSubgraph) {
-	if e.Kind != 0 && e.Kind != 3 && !(e.Kind >= 10000 && e.Kind < 20000) {
+func ExpandReplaceableEvents(e roots.ValidatedEvent, s *EventSubgraph) {
+	if e.Kind() != 0 && e.Kind() != 3 && !(e.Kind() >= 10000 && e.Kind() < 20000) {
 		return
 	}
 
@@ -200,7 +200,7 @@ func ExpandReplaceableEvents(e roots.Event, s *EventSubgraph) {
 
 	var authorNode *Node
 	for _, n := range s.NodesByLabel("User") {
-		if n.Props["pubkey"] == e.PubKey {
+		if n.Props["pubkey"] == e.PubKey() {
 			authorNode = n
 			break
 		}
@@ -209,7 +209,7 @@ func ExpandReplaceableEvents(e roots.Event, s *EventSubgraph) {
 		return
 	}
 
-	rk := NewReplacementKeyNode(e.PubKey, e.Kind)
+	rk := NewReplacementKeyNode(e.PubKey(), e.Kind())
 	s.AddNode(rk)
 	s.AddRel(NewIsReplaceableRel(eventNode, rk, nil))
 	s.AddRel(NewForUserRel(rk, authorNode, nil))
