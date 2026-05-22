@@ -21,7 +21,7 @@ type preparedWrite struct {
 	Subgraph *EventSubgraph
 }
 
-type excludedEvent struct {
+type ExcludedEvent struct {
 	Event  roots.ValidatedEvent
 	Reason error
 }
@@ -32,7 +32,7 @@ type WriteResult struct {
 }
 
 type WriteReport struct {
-	ExcludedEvents       []excludedEvent
+	ExcludedEvents       []ExcludedEvent
 	CreatedEventCount    int
 	Neo4jResultSummaries []neo4j.ResultSummary
 	Duration             time.Duration
@@ -81,7 +81,7 @@ func setDefaultWriteOptions(opts *WriteOptions) {
 	}
 }
 
-func enforcePolicyRules(in []roots.ValidatedEvent, boltdb *bolt.DB, batchSize int) (queued []roots.ValidatedEvent, excluded []excludedEvent) {
+func enforcePolicyRules(in []roots.ValidatedEvent, boltdb *bolt.DB, batchSize int) (queued []roots.ValidatedEvent, excluded []ExcludedEvent) {
 	for i := 0; i < len(in); i += batchSize {
 		end := i + batchSize
 		if end > len(in) {
@@ -98,7 +98,7 @@ func enforcePolicyRules(in []roots.ValidatedEvent, boltdb *bolt.DB, batchSize in
 
 		for _, e := range batch {
 			if existsMap[e.ID()] {
-				excluded = append(excluded, excludedEvent{
+				excluded = append(excluded, ExcludedEvent{
 					Event:  e,
 					Reason: fmt.Errorf("skipped: %w", ErrDuplicate),
 				})

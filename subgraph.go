@@ -56,10 +56,6 @@ func (s *EventSubgraph) FirstNodeByLabel(label string) *Node {
 // Helpers
 
 func IsValidTag(t roots.Tag) bool {
-	if len(t) < 2 {
-		// Skip tags that do not have name and value fields
-		return false
-	}
 	if len(t[0])+len(t[1]) > 8192 {
 		// Skip tags that are too large for the neo4j indexer
 		return false
