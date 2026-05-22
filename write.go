@@ -19,7 +19,7 @@ type WriteOptions struct {
 type EventTraveller struct {
 	ID       string
 	JSON     []byte
-	Event    roots.Event
+	Event    roots.ValidatedEvent
 	Subgraph *EventSubgraph
 	Error    error
 }
@@ -95,23 +95,23 @@ func createEventTravellers(jsons [][]byte) []EventTraveller {
 
 func parseEventJSON(in []EventTraveller) (parsed []EventTraveller, excluded []EventTraveller) {
 	for _, traveller := range in {
-		var event roots.Event
-		err := json.Unmarshal(traveller.JSON, &event)
+		var raw roots.Event
+		err := json.Unmarshal(traveller.JSON, &raw)
 		if err != nil {
 			traveller.Error = fmt.Errorf("rejected: %w: %w", ErrMalformedJSON, err)
 			excluded = append(excluded, traveller)
 			continue
 		}
 
-		err = roots.Validate(event)
+		validated, err := roots.NewValidatedEvent(raw)
 		if err != nil {
 			traveller.Error = fmt.Errorf("rejected: %w: %w", ErrInvalidEvent, err)
 			excluded = append(excluded, traveller)
 			continue
 		}
 
-		traveller.ID = event.ID
-		traveller.Event = event
+		traveller.ID = validated.ID()
+		traveller.Event = validated
 		parsed = append(parsed, traveller)
 	}
 	return parsed, excluded
@@ -146,9 +146,7 @@ func enforcePolicyRules(in []EventTraveller, boltdb *bolt.DB, batchSize int) (qu
 
 func convertEventsToSubgraphs(in []EventTraveller, expanders ExpanderPipeline) []EventTraveller {
 	for i, traveller := range in {
-		// TODO: temporary adapter — removed in Phase 5
-		validated, _ := roots.NewValidatedEvent(traveller.Event)
-		in[i].Subgraph = EventToSubgraph(validated, expanders)
+		in[i].Subgraph = EventToSubgraph(traveller.Event, expanders)
 	}
 	return in
 }

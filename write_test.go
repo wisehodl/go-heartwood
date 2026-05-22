@@ -133,7 +133,7 @@ func TestParseEventJSON(t *testing.T) {
 
 			for _, reject := range rejected {
 				assert.NotNil(t, reject.Error)
-				assert.Empty(t, reject.Event.ID)
+				assert.Empty(t, reject.Event.ID())
 			}
 		})
 	}
@@ -224,7 +224,7 @@ func TestConvertEventsToSubgraphs(t *testing.T) {
 	}{
 		{
 			name:          "event with no tags",
-			traveller:     EventTraveller{Event: fx.ValidatedEvent(t, "bare").Event()},
+			traveller:     EventTraveller{Event: fx.ValidatedEvent(t, "bare")},
 			wantNodeCount: 2, // event + user
 			wantRelCount:  1, // signed
 		},
