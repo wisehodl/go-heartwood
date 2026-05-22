@@ -199,22 +199,17 @@ func TestParseEventJSON(t *testing.T) {
 // Skip `enforcePolicyRules` -- requires BoltDB
 
 func TestConvertEventsToSubgraphs(t *testing.T) {
+	fx := LoadFixtures(t)
+
 	cases := []struct {
 		name          string
-		event         roots.Event
+		event         roots.ValidatedEvent
 		wantNodeCount int
 		wantRelCount  int
 	}{
 		{
-			name: "event with no tags",
-			event: roots.Event{
-				ID:        "abc123",
-				PubKey:    "pubkey1",
-				CreatedAt: 1000,
-				Kind:      1,
-				Content:   "test",
-				Tags:      []roots.Tag{},
-			},
+			name:          "event with no tags",
+			event:         fx.ValidatedEvent(t, "bare"),
 			wantNodeCount: 2, // event + user
 			wantRelCount:  1, // signed
 		},
@@ -232,7 +227,7 @@ func TestConvertEventsToSubgraphs(t *testing.T) {
 			go convertEventsToSubgraphs(&wg, expanders, inChan, convertedChan)
 
 			go func() {
-				inChan <- EventTraveller{Event: tc.event}
+				inChan <- EventTraveller{Event: tc.event.Event()}
 				close(inChan)
 			}()
 

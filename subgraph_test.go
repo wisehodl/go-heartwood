@@ -8,31 +8,10 @@ import (
 	"testing"
 )
 
-var ids = map[string]string{
-	"a": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-	"b": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-	"c": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
-	"d": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
-}
-
-var static = roots.NewEvent(
-	roots.WithCreatedAt(1000),
-	roots.WithKind(1),
-	roots.WithContent("hello"),
-)
-
-func newFullEventNode(id string, createdAt int64, kind int, content string) *Node {
-	n := NewEventNode(id)
-	n.Props["created_at"] = createdAt
-	n.Props["kind"] = kind
-	n.Props["content"] = content
-	return n
-}
-
-func baseSubgraph(eventID, pubkey string) (*EventSubgraph, *Node, *Node) {
+func baseSubgraph(e roots.ValidatedEvent) (*EventSubgraph, *Node, *Node) {
 	s := NewEventSubgraph()
-	eventNode := newFullEventNode(eventID, static.CreatedAt, static.Kind, static.Content)
-	userNode := NewUserNode(pubkey)
+	eventNode := newEventNode(e.ID(), e.CreatedAt(), e.Kind(), e.Content())
+	userNode := NewUserNode(e.PubKey())
 	s.AddNode(eventNode)
 	s.AddNode(userNode)
 	s.AddRel(NewSignedRel(userNode, eventNode, nil))
@@ -40,31 +19,28 @@ func baseSubgraph(eventID, pubkey string) (*EventSubgraph, *Node, *Node) {
 }
 
 func TestEventToSubgraph(t *testing.T) {
+	fx := LoadFixtures(t)
+
 	cases := []struct {
 		name     string
-		event    roots.Event
+		event    roots.ValidatedEvent
 		expected *EventSubgraph
 	}{
 		{
-			name: "bare event",
-			event: roots.Event{
-				ID: ids["a"], PubKey: ids["b"],
-				CreatedAt: static.CreatedAt, Kind: static.Kind, Content: static.Content,
-			},
+			name:  "bare event",
+			event: fx.ValidatedEvent(t, "bare"),
 			expected: func() *EventSubgraph {
-				s, _, _ := baseSubgraph(ids["a"], ids["b"])
+				e := fx.ValidatedEvent(t, "bare")
+				s, _, _ := baseSubgraph(e)
 				return s
 			}(),
 		},
 		{
-			name: "single generic tag",
-			event: roots.Event{
-				ID: ids["a"], PubKey: ids["b"],
-				CreatedAt: static.CreatedAt, Kind: static.Kind, Content: static.Content,
-				Tags: []roots.Tag{{"t", "bitcoin"}},
-			},
+			name:  "single generic tag",
+			event: fx.ValidatedEvent(t, "generic_tag"),
 			expected: func() *EventSubgraph {
-				s, eventNode, _ := baseSubgraph(ids["a"], ids["b"])
+				e := fx.ValidatedEvent(t, "generic_tag")
+				s, eventNode, _ := baseSubgraph(e)
 				tagNode := NewTagNode("t", "bitcoin")
 				s.AddNode(tagNode)
 				s.AddRel(NewTaggedRel(eventNode, tagNode, nil))
@@ -72,28 +48,14 @@ func TestEventToSubgraph(t *testing.T) {
 			}(),
 		},
 		{
-			name: "tag with fewer than 2 elements",
-			event: roots.Event{
-				ID: ids["a"], PubKey: ids["b"],
-				CreatedAt: static.CreatedAt, Kind: static.Kind, Content: static.Content,
-				Tags: []roots.Tag{{"t"}},
-			},
+			name:  "e tag with valid hex64",
+			event: fx.ValidatedEvent(t, "e_tag_valid"),
 			expected: func() *EventSubgraph {
-				s, _, _ := baseSubgraph(ids["a"], ids["b"])
-				return s
-			}(),
-		},
-		{
-			name: "e tag with valid hex64",
-			event: roots.Event{
-				ID: ids["a"], PubKey: ids["b"],
-				CreatedAt: static.CreatedAt, Kind: static.Kind, Content: static.Content,
-				Tags: []roots.Tag{{"e", ids["c"]}},
-			},
-			expected: func() *EventSubgraph {
-				s, eventNode, _ := baseSubgraph(ids["a"], ids["b"])
-				tagNode := NewTagNode("e", ids["c"])
-				referencedEvent := NewEventNode(ids["c"])
+				e := fx.ValidatedEvent(t, "e_tag_valid")
+				carolID := fx.ValidatedEvent(t, "carol_placeholder").ID()
+				s, eventNode, _ := baseSubgraph(e)
+				tagNode := NewTagNode("e", carolID)
+				referencedEvent := NewEventNode(carolID)
 				s.AddNode(tagNode)
 				s.AddNode(referencedEvent)
 				s.AddRel(NewTaggedRel(eventNode, tagNode, nil))
@@ -102,14 +64,11 @@ func TestEventToSubgraph(t *testing.T) {
 			}(),
 		},
 		{
-			name: "e tag with invalid value",
-			event: roots.Event{
-				ID: ids["a"], PubKey: ids["b"],
-				CreatedAt: static.CreatedAt, Kind: static.Kind, Content: static.Content,
-				Tags: []roots.Tag{{"e", "notvalid"}},
-			},
+			name:  "e tag with invalid value",
+			event: fx.ValidatedEvent(t, "e_tag_invalid"),
 			expected: func() *EventSubgraph {
-				s, eventNode, _ := baseSubgraph(ids["a"], ids["b"])
+				e := fx.ValidatedEvent(t, "e_tag_invalid")
+				s, eventNode, _ := baseSubgraph(e)
 				tagNode := NewTagNode("e", "notvalid")
 				s.AddNode(tagNode)
 				s.AddRel(NewTaggedRel(eventNode, tagNode, nil))
@@ -117,16 +76,14 @@ func TestEventToSubgraph(t *testing.T) {
 			}(),
 		},
 		{
-			name: "p tag with valid hex64",
-			event: roots.Event{
-				ID: ids["a"], PubKey: ids["b"],
-				CreatedAt: static.CreatedAt, Kind: static.Kind, Content: static.Content,
-				Tags: []roots.Tag{{"p", ids["d"]}},
-			},
+			name:  "p tag with valid hex64",
+			event: fx.ValidatedEvent(t, "p_tag_valid"),
 			expected: func() *EventSubgraph {
-				s, eventNode, _ := baseSubgraph(ids["a"], ids["b"])
-				tagNode := NewTagNode("p", ids["d"])
-				referencedUser := NewUserNode(ids["d"])
+				e := fx.ValidatedEvent(t, "p_tag_valid")
+				bobPubkey := fx.Keys["bob"]
+				s, eventNode, _ := baseSubgraph(e)
+				tagNode := NewTagNode("p", bobPubkey)
+				referencedUser := NewUserNode(bobPubkey)
 				s.AddNode(tagNode)
 				s.AddNode(referencedUser)
 				s.AddRel(NewTaggedRel(eventNode, tagNode, nil))
@@ -135,17 +92,53 @@ func TestEventToSubgraph(t *testing.T) {
 			}(),
 		},
 		{
-			name: "p tag with invalid value",
-			event: roots.Event{
-				ID: ids["a"], PubKey: ids["b"],
-				CreatedAt: static.CreatedAt, Kind: static.Kind, Content: static.Content,
-				Tags: []roots.Tag{{"p", "notvalid"}},
-			},
+			name:  "p tag with invalid value",
+			event: fx.ValidatedEvent(t, "p_tag_invalid"),
 			expected: func() *EventSubgraph {
-				s, eventNode, _ := baseSubgraph(ids["a"], ids["b"])
+				e := fx.ValidatedEvent(t, "p_tag_invalid")
+				s, eventNode, _ := baseSubgraph(e)
 				tagNode := NewTagNode("p", "notvalid")
 				s.AddNode(tagNode)
 				s.AddRel(NewTaggedRel(eventNode, tagNode, nil))
+				return s
+			}(),
+		},
+		{
+			name:  "replaceable kind 0",
+			event: fx.ValidatedEvent(t, "replaceable_k0"),
+			expected: func() *EventSubgraph {
+				e := fx.ValidatedEvent(t, "replaceable_k0")
+				s, eventNode, userNode := baseSubgraph(e)
+				rk := NewReplacementKeyNode(e.PubKey(), e.Kind())
+				s.AddNode(rk)
+				s.AddRel(NewIsReplaceableRel(eventNode, rk, nil))
+				s.AddRel(NewForUserRel(rk, userNode, nil))
+				return s
+			}(),
+		},
+		{
+			name:  "replaceable kind 3",
+			event: fx.ValidatedEvent(t, "replaceable_k3"),
+			expected: func() *EventSubgraph {
+				e := fx.ValidatedEvent(t, "replaceable_k3")
+				s, eventNode, userNode := baseSubgraph(e)
+				rk := NewReplacementKeyNode(e.PubKey(), e.Kind())
+				s.AddNode(rk)
+				s.AddRel(NewIsReplaceableRel(eventNode, rk, nil))
+				s.AddRel(NewForUserRel(rk, userNode, nil))
+				return s
+			}(),
+		},
+		{
+			name:  "replaceable kind 10000-19999",
+			event: fx.ValidatedEvent(t, "replaceable_k10k"),
+			expected: func() *EventSubgraph {
+				e := fx.ValidatedEvent(t, "replaceable_k10k")
+				s, eventNode, userNode := baseSubgraph(e)
+				rk := NewReplacementKeyNode(e.PubKey(), e.Kind())
+				s.AddNode(rk)
+				s.AddRel(NewIsReplaceableRel(eventNode, rk, nil))
+				s.AddRel(NewForUserRel(rk, userNode, nil))
 				return s
 			}(),
 		},
