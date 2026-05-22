@@ -1,1 +1,1 @@
-code2prompt -c -e go.sum
+code2prompt -c -e go.sum -e bump.sh -e LICENSE -e AGENTS.md -e c2p
