@@ -18,7 +18,6 @@ type WriteOptions struct {
 
 type EventTraveller struct {
 	ID       string
-	JSON     []byte
 	Event    roots.ValidatedEvent
 	Subgraph *EventSubgraph
 	Error    error
@@ -37,12 +36,10 @@ type WriteReport struct {
 	Error                error
 }
 
-var ErrMalformedJSON = errors.New("unrecognized event format")
-var ErrInvalidEvent = errors.New("invalid event")
 var ErrDuplicate = errors.New("event already exists")
 
 func WriteEvents(
-	events [][]byte,
+	events []roots.ValidatedEvent,
 	driver neo4j.Driver, boltdb *bolt.DB,
 	opts *WriteOptions,
 ) WriteReport {
@@ -59,13 +56,14 @@ func WriteEvents(
 		return WriteReport{Error: fmt.Errorf("error setting up bolt db: %w", err)}
 	}
 
-	travellers := createEventTravellers(events)
-	parsed, parseExcluded := parseEventJSON(travellers)
-	queued, policyExcluded := enforcePolicyRules(parsed, boltdb, opts.BoltReadBatchSize)
+	travellers := make([]EventTraveller, 0, len(events))
+	for _, e := range events {
+		travellers = append(travellers, EventTraveller{ID: e.ID(), Event: e})
+	}
+
+	queued, excluded := enforcePolicyRules(travellers, boltdb, opts.BoltReadBatchSize)
 	converted := convertEventsToSubgraphs(queued, opts.Expanders)
 	writeResult := writeEventsToDatabases(driver, boltdb, converted)
-
-	excluded := append(parseExcluded, policyExcluded...)
 
 	return WriteReport{
 		ExcludedEvents:       excluded,
@@ -83,38 +81,6 @@ func setDefaultWriteOptions(opts *WriteOptions) {
 	if opts.BoltReadBatchSize == 0 {
 		opts.BoltReadBatchSize = 100
 	}
-}
-
-func createEventTravellers(jsons [][]byte) []EventTraveller {
-	travellers := make([]EventTraveller, 0, len(jsons))
-	for _, j := range jsons {
-		travellers = append(travellers, EventTraveller{JSON: j})
-	}
-	return travellers
-}
-
-func parseEventJSON(in []EventTraveller) (parsed []EventTraveller, excluded []EventTraveller) {
-	for _, traveller := range in {
-		var raw roots.Event
-		err := json.Unmarshal(traveller.JSON, &raw)
-		if err != nil {
-			traveller.Error = fmt.Errorf("rejected: %w: %w", ErrMalformedJSON, err)
-			excluded = append(excluded, traveller)
-			continue
-		}
-
-		validated, err := roots.NewValidatedEvent(raw)
-		if err != nil {
-			traveller.Error = fmt.Errorf("rejected: %w: %w", ErrInvalidEvent, err)
-			excluded = append(excluded, traveller)
-			continue
-		}
-
-		traveller.ID = validated.ID()
-		traveller.Event = validated
-		parsed = append(parsed, traveller)
-	}
-	return parsed, excluded
 }
 
 func enforcePolicyRules(in []EventTraveller, boltdb *bolt.DB, batchSize int) (queued []EventTraveller, excluded []EventTraveller) {
@@ -169,8 +135,11 @@ func writeEventsToDatabases(driver neo4j.Driver, boltdb *bolt.DB, travellers []E
 func writeEventsToBoltDB(boltdb *bolt.DB, travellers []EventTraveller) error {
 	var events []EventBlob
 	for _, traveller := range travellers {
-		events = append(events,
-			EventBlob{ID: []byte(traveller.ID), JSON: traveller.JSON})
+		j, err := json.Marshal(traveller.Event)
+		if err != nil {
+			return fmt.Errorf("failed to serialize event %s: %w", traveller.ID, err)
+		}
+		events = append(events, EventBlob{ID: []byte(traveller.ID), JSON: j})
 	}
 	return BatchWriteEvents(boltdb, events)
 }
@@ -190,5 +159,3 @@ func writeEventsToGraphDB(driver neo4j.Driver, travellers []EventTraveller) ([]n
 
 	return MergeSubgraph(context.Background(), driver, batch)
 }
-
-
