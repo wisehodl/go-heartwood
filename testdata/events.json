@@ -1,0 +1,154 @@
+{
+  "events": {
+    "bare": {
+      "description": "Minimal event, no tags",
+      "event": {
+        "id": "1da6d5f9576fec76a95df494a2e4938fada64861fb5e219bc84f5096cb4afa72",
+        "pubkey": "ab5d2e79cfd621b1b027ffb24e2453ed7fb571ba9a841ff0e2473466cabd168d",
+        "created_at": 1000,
+        "kind": 1,
+        "tags": null,
+        "content": "bare",
+        "sig": "6cfc68b98e6ea885fab7b907913ee3a6f5e2d55510720fa2a2be286ba268b26759af8560bbdaf1f73a90538d176668219371b58294850ff9c606ed5e77486d97"
+      }
+    },
+    "carol_placeholder": {
+      "description": "Provides real event ID for e-tag tests",
+      "event": {
+        "id": "7750d2e1166793c982ab77f8c673c80ae4fcbfa7b27ada11c25f09c9ec124eb5",
+        "pubkey": "438a4f623099e7c238970a8481b03d449fd45cc2c2185e739b28f28ce5342bb3",
+        "created_at": 1000,
+        "kind": 1,
+        "tags": null,
+        "content": "carol placeholder",
+        "sig": "2a17f67aef9f1c47777610741b8bf616ac532d7a9778022cf2cf0be8cb795b10246e50c3dc6ab4b9a6c5ddab1339b83de906c44d87b9b18288a8d286cf173cbe"
+      }
+    },
+    "e_tag_invalid": {
+      "description": "e-tag with non-hex value; expander skips it",
+      "event": {
+        "id": "bd0ab5852ebadd81aa1aed160bc8bc29df1cc6301c4e1e291753f9b7b45a74e4",
+        "pubkey": "ab5d2e79cfd621b1b027ffb24e2453ed7fb571ba9a841ff0e2473466cabd168d",
+        "created_at": 1000,
+        "kind": 1,
+        "tags": [
+          [
+            "e",
+            "notvalid"
+          ]
+        ],
+        "content": "e tag invalid",
+        "sig": "f2584c5a648879c4f4f5f51c78bfad848b30970964d2d0e9034693d72cabceecaddbbcd7998b10e936f6aa7e6cc71ca48672f209dbc72e27d0dda8e04514627a"
+      }
+    },
+    "e_tag_valid": {
+      "description": "e-tag referencing carol_placeholder.id; triggers ExpandTaggedEvents",
+      "event": {
+        "id": "1143f2388f4960582b78b888a6884667c501622bda3427d5d399dfaff3bfcb8b",
+        "pubkey": "ab5d2e79cfd621b1b027ffb24e2453ed7fb571ba9a841ff0e2473466cabd168d",
+        "created_at": 1000,
+        "kind": 1,
+        "tags": [
+          [
+            "e",
+            "7750d2e1166793c982ab77f8c673c80ae4fcbfa7b27ada11c25f09c9ec124eb5"
+          ]
+        ],
+        "content": "e tag valid",
+        "sig": "9d6322bb827ce962364b39c3507c411f0ab418f86ac6a86b1a116318c98f922cbb71e67b0fe101a4fd65240ae18011cdf6fc42faa3ccc15a16d1d8151d9537e7"
+      }
+    },
+    "generic_tag": {
+      "description": "Generic t-tag; no expander triggered",
+      "event": {
+        "id": "61a977e8af0f2903a54420503525cdba12ee0d0f2286d0d9b97d301cd0c48e78",
+        "pubkey": "ab5d2e79cfd621b1b027ffb24e2453ed7fb571ba9a841ff0e2473466cabd168d",
+        "created_at": 1000,
+        "kind": 1,
+        "tags": [
+          [
+            "t",
+            "bitcoin"
+          ]
+        ],
+        "content": "generic tag",
+        "sig": "9b8711fd744968fb4fcb3751db716c8ff594e67435067a45db221bf8235e513ac09b5d7c906a277569dfe888ca8ac8aa9edd7b1dfd41b7e65c3fcf566909cb26"
+      }
+    },
+    "p_tag_invalid": {
+      "description": "p-tag with non-hex value; expander skips it",
+      "event": {
+        "id": "4efbe65fd7fa349c423b400bdfdc72f4348b596cfb4a1dcffe0354898321b661",
+        "pubkey": "ab5d2e79cfd621b1b027ffb24e2453ed7fb571ba9a841ff0e2473466cabd168d",
+        "created_at": 1000,
+        "kind": 1,
+        "tags": [
+          [
+            "p",
+            "notvalid"
+          ]
+        ],
+        "content": "p tag invalid",
+        "sig": "ee7a2958f8afb2580324b796d89dcce7ece4cffd8515170a7dda16da44281e27281acc4b2e8bf3dd687b666336c46ea8b268a3eba4b2992ab5330c8857b0b9e1"
+      }
+    },
+    "p_tag_valid": {
+      "description": "p-tag referencing bob's pubkey; triggers ExpandTaggedUsers",
+      "event": {
+        "id": "5585db1ad4e5e8338bb316b0ba2d629a09e7a85ff13cd4e82394ebdb0ecfbe02",
+        "pubkey": "ab5d2e79cfd621b1b027ffb24e2453ed7fb571ba9a841ff0e2473466cabd168d",
+        "created_at": 1000,
+        "kind": 1,
+        "tags": [
+          [
+            "p",
+            "6aa3da9b5c1d61956076cb3014ffdaa0996bacdae29ba4b89e39b4088f86ec78"
+          ]
+        ],
+        "content": "p tag valid",
+        "sig": "96c8989f9697670ef25737745835be057063ea27d025b09e90fa7357cdf8eaa0eb7114c1f5c78b21c859e249108b0b2f9d0c2745c627199fcdd1abb4700c09f3"
+      }
+    },
+    "replaceable_k0": {
+      "description": "Kind 0; triggers ExpandReplaceableEvents",
+      "event": {
+        "id": "980337456b70da46bdfbcebece79f80f5dcb8252b699f4ca49c1d775ee984a79",
+        "pubkey": "ab5d2e79cfd621b1b027ffb24e2453ed7fb571ba9a841ff0e2473466cabd168d",
+        "created_at": 1000,
+        "kind": 0,
+        "tags": null,
+        "content": "replaceable k0",
+        "sig": "f3f42c5ef863834ad64b161bb6c921166e36992d66a616537b55c18e7fd4d9b30635a418c788f7e0e086f63087eb8540a104dd676a18f11491a7ef91a0b7b02a"
+      }
+    },
+    "replaceable_k10k": {
+      "description": "Kind 10002; triggers ExpandReplaceableEvents",
+      "event": {
+        "id": "03ad06615fc00dff6caae73d803896745459f47c468f1856d8c87afbd64ba85d",
+        "pubkey": "ab5d2e79cfd621b1b027ffb24e2453ed7fb571ba9a841ff0e2473466cabd168d",
+        "created_at": 1000,
+        "kind": 10002,
+        "tags": null,
+        "content": "replaceable k10k",
+        "sig": "c4f041d9911fd63125ad2b3348f766cf6895bd452adad386dbda7d57b87b151ea56faf265e707b812bf375dfb85cd0793d645f48ba7db2fc9e12c1fe79359d1e"
+      }
+    },
+    "replaceable_k3": {
+      "description": "Kind 3; triggers ExpandReplaceableEvents",
+      "event": {
+        "id": "5db1a0d7338e83b75cd1ae233e999e16b166f96672267768f25188f1d0a4ae78",
+        "pubkey": "ab5d2e79cfd621b1b027ffb24e2453ed7fb571ba9a841ff0e2473466cabd168d",
+        "created_at": 1000,
+        "kind": 3,
+        "tags": null,
+        "content": "replaceable k3",
+        "sig": "8738a009f80c3a58db0b88792fea36ed77ada5d6b089ff7729347a3a47f6a2fae27ad47763c59cfc4b4573121c03bb431b937419f37e919a1f4cc21d150543e0"
+      }
+    }
+  },
+  "keys": {
+    "alice": "ab5d2e79cfd621b1b027ffb24e2453ed7fb571ba9a841ff0e2473466cabd168d",
+    "bob": "6aa3da9b5c1d61956076cb3014ffdaa0996bacdae29ba4b89e39b4088f86ec78",
+    "carol": "438a4f623099e7c238970a8481b03d449fd45cc2c2185e739b28f28ce5342bb3"
+  }
+}
