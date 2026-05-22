@@ -1,6 +1,7 @@
 package heartwood
 
 import (
+	roots "git.wisehodl.dev/jay/go-roots/events"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -13,57 +14,47 @@ func TestEnforcePolicyRules(t *testing.T) {
 	require.NoError(t, SetupBoltDB(db))
 	fx := LoadFixtures(t)
 
-	// Pre-write bare and generic_tag as existing events
-	bareJSON, _ := fx.ValidatedEvent(t, "bare").MarshalJSON()
-	genericJSON, _ := fx.ValidatedEvent(t, "generic_tag").MarshalJSON()
-	bareID := fx.ValidatedEvent(t, "bare").ID()
-	genericID := fx.ValidatedEvent(t, "generic_tag").ID()
+	bareEvent := fx.ValidatedEvent(t, "bare")
+	genericEvent := fx.ValidatedEvent(t, "generic_tag")
+	e_tag_event := fx.ValidatedEvent(t, "e_tag_valid")
+	p_tag_event := fx.ValidatedEvent(t, "p_tag_valid")
 
+	// Pre-write bare and generic_tag as existing events
+	bareJSON, _ := bareEvent.MarshalJSON()
+	genericJSON, _ := genericEvent.MarshalJSON()
 	err := BatchWriteEvents(db, []EventBlob{
-		{ID: []byte(bareID), JSON: bareJSON},
-		{ID: []byte(genericID), JSON: genericJSON},
+		{ID: []byte(bareEvent.ID()), JSON: bareJSON},
+		{ID: []byte(genericEvent.ID()), JSON: genericJSON},
 	})
 	assert.NoError(t, err)
 
-	e_tag_id := fx.ValidatedEvent(t, "e_tag_valid").ID()
-	p_tag_id := fx.ValidatedEvent(t, "p_tag_valid").ID()
-
 	cases := []struct {
 		name         string
-		input        []EventTraveller
+		input        []roots.ValidatedEvent
 		wantQueued   int
 		wantExcluded int
 	}{
 		{
 			name:         "empty input",
-			input:        []EventTraveller{},
+			input:        []roots.ValidatedEvent{},
 			wantQueued:   0,
 			wantExcluded: 0,
 		},
 		{
-			name: "no duplicates",
-			input: []EventTraveller{
-				{ID: e_tag_id},
-				{ID: p_tag_id},
-			},
+			name:         "no duplicates",
+			input:        []roots.ValidatedEvent{e_tag_event, p_tag_event},
 			wantQueued:   2,
 			wantExcluded: 0,
 		},
 		{
-			name: "some duplicates",
-			input: []EventTraveller{
-				{ID: bareID},
-				{ID: e_tag_id},
-			},
+			name:         "some duplicates",
+			input:        []roots.ValidatedEvent{bareEvent, e_tag_event},
 			wantQueued:   1,
 			wantExcluded: 1,
 		},
 		{
-			name: "all duplicates",
-			input: []EventTraveller{
-				{ID: bareID},
-				{ID: genericID},
-			},
+			name:         "all duplicates",
+			input:        []roots.ValidatedEvent{bareEvent, genericEvent},
 			wantQueued:   0,
 			wantExcluded: 2,
 		},
@@ -76,7 +67,7 @@ func TestEnforcePolicyRules(t *testing.T) {
 			assert.Equal(t, tc.wantQueued, len(queued))
 			assert.Equal(t, tc.wantExcluded, len(excluded))
 			for _, ex := range excluded {
-				assert.ErrorIs(t, ex.Error, ErrDuplicate)
+				assert.ErrorIs(t, ex.Reason, ErrDuplicate)
 			}
 		})
 	}
@@ -87,13 +78,13 @@ func TestConvertEventsToSubgraphs(t *testing.T) {
 
 	cases := []struct {
 		name          string
-		traveller     EventTraveller
+		event         roots.ValidatedEvent
 		wantNodeCount int
 		wantRelCount  int
 	}{
 		{
 			name:          "event with no tags",
-			traveller:     EventTraveller{Event: fx.ValidatedEvent(t, "bare")},
+			event:         fx.ValidatedEvent(t, "bare"),
 			wantNodeCount: 2, // event + user
 			wantRelCount:  1, // signed
 		},
@@ -102,7 +93,7 @@ func TestConvertEventsToSubgraphs(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			expanders := NewExpanderPipeline(DefaultExpanders()...)
-			results := convertEventsToSubgraphs([]EventTraveller{tc.traveller}, expanders)
+			results := convertEventsToSubgraphs([]roots.ValidatedEvent{tc.event}, expanders)
 
 			assert.Len(t, results, 1)
 			assert.NotNil(t, results[0].Subgraph)
