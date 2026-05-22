@@ -33,8 +33,8 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"log"
+	"time"
 
 	"git.wisehodl.dev/jay/go-roots/events"
 	"git.wisehodl.dev/jay/go-roots/keys"
@@ -53,7 +53,7 @@ func main() {
 	}
 	defer driver.Close(ctx)
 
-    // Ensure the necessary indexes and constraints exist
+	// Ensure the necessary indexes and constraints exist
 	if err := heartwood.SetNeo4jSchema(ctx, driver); err != nil {
 		log.Fatal(err)
 	}
@@ -65,50 +65,48 @@ func main() {
 	}
 	defer boltdb.Close()
 
-	// Build events using go-roots
+	// Build and validate an event using go-roots
 	sk, _ := keys.GeneratePrivateKey()
 	pk, _ := keys.GetPublicKey(sk)
 
-	event := events.Event{
-		PubKey:    pk,
-		CreatedAt: 1000,
-		Kind:      1,
-		Content:   "hello from heartwood",
-		Tags:      []events.Tag{},
-	}
-	event.ID, _ = events.GenerateEventID(event)
-	event.Sig, _ = events.SignEvent(event, sk)
-
-	eventJSON, _ := json.Marshal(event)
-
-	// Write events
-	report, err := heartwood.WriteEvents(
-		[][]byte{eventJSON},
-		driver, boltdb,
-		nil, // default WriteOptions
+	event := events.NewEvent(
+		events.WithPubKey(pk),
+		events.WithCreatedAt(time.Now().Unix()),
+		events.WithKind(1),
+		events.WithContent("hello from heartwood"),
 	)
+	event.ID = events.GetID(event)
+	sig, err := events.SignEvent(event.ID, sk)
+	if err != nil {
+		log.Fatal(err)
+	}
+	event.Sig = sig
+
+	validated, err := events.NewValidatedEvent(event)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-    log.Printf("created: %d, excluded: %d, duration: %s",
-        report.CreatedEventCount,
-        len(report.ExcludedEvents),
-        report.Duration,
-    )
+	// Write events
+	report := heartwood.WriteEvents(
+		[]events.ValidatedEvent{validated},
+		driver, boltdb,
+		nil, // default WriteOptions
+	)
+	if report.Error != nil {
+		log.Fatal(report.Error)
+	}
+
+	log.Printf("created: %d, excluded: %d, duration: %s",
+		report.CreatedEventCount,
+		len(report.ExcludedEvents),
+		report.Duration,
+	)
 }
 ```
 
 ## Testing
 
-Run tests with:
-
 ```bash
 go test ./...
-```
-
-Run with race detector:
-
-```bash
-go test -race ./...
 ```
