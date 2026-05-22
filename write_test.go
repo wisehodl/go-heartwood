@@ -1,9 +1,8 @@
 package heartwood
 
 import (
-	roots "git.wisehodl.dev/jay/go-roots/events"
 	"github.com/stretchr/testify/assert"
-	"sync"
+	"github.com/stretchr/testify/require"
 	"testing"
 )
 
@@ -54,26 +53,7 @@ func TestCreateEventTravellers(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			var wg sync.WaitGroup
-			jsonChan := make(chan []byte)
-			eventChan := make(chan EventTraveller)
-
-			wg.Add(1)
-			go createEventTravellers(&wg, jsonChan, eventChan)
-
-			go func() {
-				for _, raw := range tc.input {
-					jsonChan <- raw
-				}
-				close(jsonChan)
-			}()
-
-			var result []EventTraveller
-			for traveller := range eventChan {
-				result = append(result, traveller)
-			}
-
-			wg.Wait()
+			result := createEventTravellers(tc.input)
 
 			assert.Equal(t, len(tc.expected), len(result))
 			for i := range tc.expected {
@@ -81,7 +61,6 @@ func TestCreateEventTravellers(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestParseEventJSON(t *testing.T) {
@@ -136,43 +115,7 @@ func TestParseEventJSON(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			var wg sync.WaitGroup
-			inChan := make(chan EventTraveller)
-			parsedChan := make(chan EventTraveller)
-			rejectedChan := make(chan EventTraveller)
-
-			wg.Add(1)
-			go parseEventJSON(&wg, inChan, parsedChan, rejectedChan)
-
-			go func() {
-				for _, traveller := range tc.input {
-					inChan <- traveller
-				}
-				close(inChan)
-			}()
-
-			var parsed []EventTraveller
-			var rejected []EventTraveller
-			var collectWg sync.WaitGroup
-
-			collectWg.Add(2)
-
-			go func() {
-				defer collectWg.Done()
-				for f := range parsedChan {
-					parsed = append(parsed, f)
-				}
-			}()
-
-			go func() {
-				defer collectWg.Done()
-				for f := range rejectedChan {
-					rejected = append(rejected, f)
-				}
-			}()
-
-			collectWg.Wait()
-			wg.Wait()
+			parsed, rejected := parseEventJSON(tc.input)
 
 			assert.Equal(t, tc.wantParsed, len(parsed))
 			assert.Equal(t, tc.wantRejected, len(rejected))
@@ -196,20 +139,92 @@ func TestParseEventJSON(t *testing.T) {
 	}
 }
 
-// Skip `enforcePolicyRules` -- requires BoltDB
+func TestEnforcePolicyRules(t *testing.T) {
+	db := tempDB(t)
+	require.NoError(t, SetupBoltDB(db))
+	fx := LoadFixtures(t)
+
+	// Pre-write bare and generic_tag as existing events
+	bareJSON, _ := fx.ValidatedEvent(t, "bare").MarshalJSON()
+	genericJSON, _ := fx.ValidatedEvent(t, "generic_tag").MarshalJSON()
+	bareID := fx.ValidatedEvent(t, "bare").ID()
+	genericID := fx.ValidatedEvent(t, "generic_tag").ID()
+
+	err := BatchWriteEvents(db, []EventBlob{
+		{ID: []byte(bareID), JSON: bareJSON},
+		{ID: []byte(genericID), JSON: genericJSON},
+	})
+	assert.NoError(t, err)
+
+	e_tag_id := fx.ValidatedEvent(t, "e_tag_valid").ID()
+	p_tag_id := fx.ValidatedEvent(t, "p_tag_valid").ID()
+
+	cases := []struct {
+		name         string
+		input        []EventTraveller
+		wantQueued   int
+		wantExcluded int
+	}{
+		{
+			name:         "empty input",
+			input:        []EventTraveller{},
+			wantQueued:   0,
+			wantExcluded: 0,
+		},
+		{
+			name: "no duplicates",
+			input: []EventTraveller{
+				{ID: e_tag_id},
+				{ID: p_tag_id},
+			},
+			wantQueued:   2,
+			wantExcluded: 0,
+		},
+		{
+			name: "some duplicates",
+			input: []EventTraveller{
+				{ID: bareID},
+				{ID: e_tag_id},
+			},
+			wantQueued:   1,
+			wantExcluded: 1,
+		},
+		{
+			name: "all duplicates",
+			input: []EventTraveller{
+				{ID: bareID},
+				{ID: genericID},
+			},
+			wantQueued:   0,
+			wantExcluded: 2,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			queued, excluded := enforcePolicyRules(tc.input, db, 100)
+
+			assert.Equal(t, tc.wantQueued, len(queued))
+			assert.Equal(t, tc.wantExcluded, len(excluded))
+			for _, ex := range excluded {
+				assert.ErrorIs(t, ex.Error, ErrDuplicate)
+			}
+		})
+	}
+}
 
 func TestConvertEventsToSubgraphs(t *testing.T) {
 	fx := LoadFixtures(t)
 
 	cases := []struct {
 		name          string
-		event         roots.ValidatedEvent
+		traveller     EventTraveller
 		wantNodeCount int
 		wantRelCount  int
 	}{
 		{
 			name:          "event with no tags",
-			event:         fx.ValidatedEvent(t, "bare"),
+			traveller:     EventTraveller{Event: fx.ValidatedEvent(t, "bare").Event()},
 			wantNodeCount: 2, // event + user
 			wantRelCount:  1, // signed
 		},
@@ -217,78 +232,15 @@ func TestConvertEventsToSubgraphs(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			var wg sync.WaitGroup
-			inChan := make(chan EventTraveller)
-			convertedChan := make(chan EventTraveller)
-
 			expanders := NewExpanderPipeline(DefaultExpanders()...)
+			results := convertEventsToSubgraphs([]EventTraveller{tc.traveller}, expanders)
 
-			wg.Add(1)
-			go convertEventsToSubgraphs(&wg, expanders, inChan, convertedChan)
-
-			go func() {
-				inChan <- EventTraveller{Event: tc.event.Event()}
-				close(inChan)
-			}()
-
-			var result EventTraveller
-			for f := range convertedChan {
-				result = f
-			}
-
-			wg.Wait()
-
-			assert.NotNil(t, result.Subgraph)
-			assert.Equal(t, tc.wantNodeCount, len(result.Subgraph.Nodes()))
-			assert.Equal(t, tc.wantRelCount, len(result.Subgraph.Rels()))
+			assert.Len(t, results, 1)
+			assert.NotNil(t, results[0].Subgraph)
+			assert.Equal(t, tc.wantNodeCount, len(results[0].Subgraph.Nodes()))
+			assert.Equal(t, tc.wantRelCount, len(results[0].Subgraph.Rels()))
 		})
 	}
 }
 
 // Skip `writeEventsToDatabases` tests -- requires BoltDB + Neo4j
-
-func TestCollectEvents(t *testing.T) {
-	cases := []struct {
-		name     string
-		input    []EventTraveller
-		expected int
-	}{
-		{
-			name:     "empty channel",
-			input:    []EventTraveller{},
-			expected: 0,
-		},
-		{
-			name: "multiple travellers",
-			input: []EventTraveller{
-				{ID: "id1"},
-				{ID: "id2"},
-				{ID: "id3"},
-			},
-			expected: 3,
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			var wg sync.WaitGroup
-			inChan := make(chan EventTraveller)
-			resultChan := make(chan []EventTraveller)
-
-			wg.Add(1)
-			go collectTravellers(&wg, inChan, resultChan)
-
-			go func() {
-				for _, f := range tc.input {
-					inChan <- f
-				}
-				close(inChan)
-			}()
-
-			result := <-resultChan
-			wg.Wait()
-
-			assert.Equal(t, tc.expected, len(result))
-		})
-	}
-}
